@@ -18,7 +18,7 @@ except:
 def calling_static(period=1.0, printer=print, timer=None,
                    max_qps=None, qps_resolution=0.05):
     """
-    
+
     :param period: 打印周期
     :type period: float
     :param printer: 打印函数
@@ -52,7 +52,8 @@ def calling_static(period=1.0, printer=print, timer=None,
             
             now = _timer()  # type: float
             _record["count_spd"] += 1
-            _record["count_qps"] += 1
+            if max_qps:
+                _record["count_qps"] += 1
             _record["total"] += 1
             if now - _record["checkpoint_spd"] > period:
                 printer("Timer:T+%0.3fs Tot:%d Spd:%0.2f/s PID:%d" % (
