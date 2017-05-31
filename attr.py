@@ -3,6 +3,7 @@
 from __future__ import unicode_literals, division
 import inspect
 import collections
+import traceback
 
 __version__ = (2017, 5, 30, 1)
 __author__ = "Aploium<i@z.codes>"
@@ -25,7 +26,14 @@ def attributes(var,
                ):
     if _padding == BASIC_PADDING_LENGTH:
         output = "#### BEGIN ATTRIBUTES {} ####\n".format(type(var))
-        output += "__str__: {}\n".format(repr(var))
+        
+        if not isinstance(var, (dict, list, tuple, set)):
+            try:
+                _repr_var = repr(var)
+            except:
+                _repr_var = traceback.format_exc()
+        
+            output += "__str__: {}\n".format(_repr_var)
     else:
         output = ""
     
@@ -42,10 +50,16 @@ def attributes(var,
         if (skip_private and name.startswith("_")) or name.endswith("_"):
             continue
         
-        if from_dict:
-            subval = var[name]
-        else:
-            subval = getattr(var, name)
+        try:
+            if from_dict:
+                subval = var[name]
+            else:
+                subval = getattr(var, name)
+        except:
+            subval = traceback.format_exc()
+        
+        if inspect.ismodule(subval) or inspect.isfunction(subval):
+            continue
         
         type_str = str(type(subval))
         
@@ -53,7 +67,10 @@ def attributes(var,
             subval_str = "<method>"
             nosub = True
         else:
-            subval_str = repr(subval)
+            try:
+                subval_str = repr(subval)
+            except:
+                subval_str = traceback.format_exc()
             nosub = False
         
         if masked_keywords:

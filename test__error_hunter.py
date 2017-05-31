@@ -3,24 +3,29 @@
 
 import logging
 import logging.handlers
-
-from err_hunter import MyHTTPHandler
+import err_hunter
 
 FORMAT = "[%(levelname)s %(asctime)s %(module)s.%(funcName)s#%(lineno)d] %(message)s"
 logging.basicConfig(
     format=FORMAT,
     level=logging.DEBUG,
 )
-handler = MyHTTPHandler("https://api.dyn.li/log", method="POST")
-formatter = logging.Formatter(fmt=FORMAT)
-handler.setFormatter(formatter)
 
-handler.setLevel(logging.WARNING)
-logging.getLogger().addHandler(handler)
+err_hunter.apply_handler("https://api.dyn.li/log", method="POST")
 
 log = logging.getLogger(__name__)
 
 log.info("info")
+
+
+def func3():
+    monkey = 3
+    a = 1 / 0
+
+
+def func2():
+    dog = 1
+    func3()
 
 
 def func():
@@ -29,6 +34,6 @@ def func():
 
 
 try:
-    a = 1 / 0
+    func2()
 except:
     func()
