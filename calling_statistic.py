@@ -56,8 +56,8 @@ def calling_static(period=1.0, printer=print, timer=None,
                 _record["count_qps"] += 1
             _record["total"] += 1
             if now - _record["checkpoint_spd"] > period:
-                printer("Timer:T+%0.3fs Tot:%d Spd:%0.2f/s PID:%d" % (
-                    now - start_time, _record["total"],
+                printer("Timer:func:%s T+%0.3fs Tot:%d Spd:%0.2f/s PID:%d" % (
+                    func.__name__, now - start_time, _record["total"],
                     _record["count_spd"] / (now - _record["checkpoint_spd"]),
                     os.getpid()
                 ))
