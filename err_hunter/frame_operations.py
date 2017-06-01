@@ -2,8 +2,8 @@
 # coding=utf-8
 import sys
 import inspect
-from err_hunter.attr import attributes
-from err_hunter import myinspect
+from .attr import attributes
+from . import myinspect
 
 PY2 = (sys.version_info[0] == 2)
 
@@ -36,13 +36,23 @@ def frame_format(frame, interested=None, linerange=5, frame_lineno=None):
     source_lines[frame_lineno - first_lineno] = "--->" \
                                                 + source_lines[frame_lineno - first_lineno].rstrip("\r\n ") \
                                                 + "  <---\n"
+    
+    frag_first_lineno = max(0, frame_lineno - first_lineno - linerange)
     source_lines = source_lines[
-                   max(0, frame_lineno - first_lineno - linerange)
+                   frag_first_lineno
                    : frame_lineno - first_lineno + linerange
                    ]
-    source_lines = "".join(("    " + x if not x.startswith("-") else x) for x in source_lines)
+    frag_first_lineno += first_lineno
+    source_lines = "".join(
+        (
+            "{:<4}{}".format(i + frag_first_lineno, x)
+            if not x.startswith("-")
+            else x
+        )
+        for i, x in enumerate(source_lines)
+    )
     
-    text = """Frame {abs_path}, line {frame_lineno}, in {func_name}
+    text = """File "{abs_path}", line {frame_lineno}, in {func_name}
 {source_lines}
 #----global_vars----#
 {global_vars}

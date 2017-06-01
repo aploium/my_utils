@@ -10,7 +10,8 @@ import requests
 import inspect
 import getpass
 import platform
-from err_hunter import frame_operations
+from . import frame_operations
+from . import traceback2
 
 
 class MyHTTPHandler(logging.Handler):
@@ -54,16 +55,7 @@ class MyHTTPHandler(logging.Handler):
         if sys.exc_info() != (None, None, None) and "_traceback" not in data:
             data["_traceback"] = traceback.format_exc()
             
-            _traceback_frames = ""
-            
-            for frame, lineno in traceback.walk_tb(sys.exc_info()[2]):
-                abs_path = frame.f_code.co_filename
-                if ".." not in os.path.relpath(abs_path, self.source_path):
-                    _traceback_frames += frame_operations.frame_format(
-                        frame, interested=self.interested, frame_lineno=lineno
-                    ) + "\n"
-            
-            data["_traceback_frames"] = _traceback_frames
+            data["_traceback_frames"] = traceback2.format_exc(with_normal=False)
         
         return data
     

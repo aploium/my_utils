@@ -27,10 +27,10 @@ class AdditionalInfoProcessor(raven.processors.Processor):
         return data
 
 
-client = None
+client = None # type: raven.Client
 
 
-def setup(dsn=None, level=logging.WARNING, **kwargs):
+def setup(dsn=None, name=None, level=logging.WARNING, **kwargs):
     global client
     
     dsn = dsn or os.getenv("SENTRY_DSN")
@@ -40,7 +40,9 @@ def setup(dsn=None, level=logging.WARNING, **kwargs):
     
     client = raven.Client(
         dsn,
-        processors=raven.conf.defaults.PROCESSORS + ("sentry.AdditionalInfoProcessor",),
+        name=name,
+        processors=raven.conf.defaults.PROCESSORS + (
+            AdditionalInfoProcessor.__module__ + "." + AdditionalInfoProcessor.__name__,),
         **kwargs
     )
     handler = raven.handlers.logging.SentryHandler(client)

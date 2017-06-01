@@ -23,16 +23,20 @@ def attributes(var,
                masked_keywords=DEFAULT_MASKED_KEYWORDS,
                from_dict=None,
                _padding=BASIC_PADDING_LENGTH,
+               with_sepline=False,
                ):
     if _padding == BASIC_PADDING_LENGTH:
-        output = "#### BEGIN ATTRIBUTES {} ####\n".format(type(var))
+        if with_sepline:
+            output = "#### BEGIN ATTRIBUTES {} ####\n".format(type(var))
+        else:
+            output = ""
         
         if not isinstance(var, (dict, list, tuple, set)):
             try:
                 _repr_var = repr(var)
             except:
                 _repr_var = traceback.format_exc()
-        
+            
             output += "__str__: {}\n".format(_repr_var)
     else:
         output = ""
@@ -58,7 +62,7 @@ def attributes(var,
         except:
             subval = traceback.format_exc()
         
-        if inspect.ismodule(subval) or inspect.isfunction(subval):
+        if inspect.ismodule(subval) or inspect.isfunction(subval) or inspect.isclass(subval):
             continue
         
         type_str = str(type(subval))
@@ -110,7 +114,7 @@ def attributes(var,
         else:
             output += "{name}: {value}\n{subvalues}".format(name=name, value=ori_subval_str, subvalues=subval_str)
     
-    if _padding == BASIC_PADDING_LENGTH:
+    if with_sepline and _padding == BASIC_PADDING_LENGTH:
         output += "#### END ATTRIBUTES {} ####\n".format(type(var))
     
     return output

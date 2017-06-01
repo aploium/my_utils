@@ -2,11 +2,13 @@
 # coding=utf-8
 from __future__ import absolute_import
 import logging
-from err_hunter.mylogger import MyHTTPHandler
+from .mylogger import MyHTTPHandler
+from .traceback2 import format_exc, print_exc
 
 __version__ = (2017, 5, 31, 1)
 __author__ = "Aploium<i@z.codes>"
 
+FORMAT = "[%(levelname)s %(asctime)s %(module)s.%(funcName)s#%(lineno)d] %(message)s"
 
 def apply_handler(url,
                   level=logging.WARNING,
