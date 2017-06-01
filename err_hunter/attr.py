@@ -13,6 +13,7 @@ DEFAULT_MAXLEN = 2048
 BASIC_PADDING_LENGTH = 4
 PADDING_STEP = 4
 DEFAULT_MASKED_KEYWORDS = ("secret", "password", "passwd", "token", "access_key")
+MAX_SINGLE_VAR_LEN = 512
 
 
 def attributes(var,
@@ -22,8 +23,9 @@ def attributes(var,
                max_depth=DEFAULT_MAXDEPTH,
                masked_keywords=DEFAULT_MASKED_KEYWORDS,
                from_dict=None,
+               with_sepline=False,
+               max_single_var_len=MAX_SINGLE_VAR_LEN,
                _padding=BASIC_PADDING_LENGTH,
-               with_sepline=False
                ):
     if _padding == BASIC_PADDING_LENGTH:
         if with_sepline:
@@ -67,10 +69,23 @@ def attributes(var,
         
         type_str = str(type(subval))
         
+        str_prefix = ""
+        
         if inspect.ismethod(subval):
             subval_str = "<method>"
             nosub = True
         else:
+            if not isinstance(subval, (str, bytes, bytearray)) \
+                    and isinstance(subval, collections.Sequence):
+                try:
+                    subval_len = len(subval)
+                except:
+                    pass
+                else:
+                    if subval_len > max_single_var_len:
+                        str_prefix += "[{} MORE ITEMS IGNORED]".format(subval_len - max_single_var_len)
+                        subval = subval[:max_single_var_len]
+            
             try:
                 subval_str = repr(subval)
             except:
@@ -90,10 +105,12 @@ def attributes(var,
         rec = False
         
         if len(subval_str) > maxlen:
-            subval_str = "[OMITTED WARNING!] " \
-                         + subval_str[:half_len] \
+            str_prefix = "[OMITTED WARNING!]"
+            subval_str = subval_str[:half_len] \
                          + " ###omit:{}### ".format(len(subval_str) - maxlen) \
                          + subval_str[half_len:]
+        
+        subval_str = str_prefix + subval_str
         
         if interested is not None and max_depth and not nosub:
             for needle in interested:
