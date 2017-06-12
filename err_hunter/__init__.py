@@ -10,6 +10,7 @@ __author__ = "Aploium<i@z.codes>"
 
 FORMAT = "[%(levelname)s %(asctime)s %(module)s.%(funcName)s#%(lineno)d] %(message)s"
 
+
 def apply_handler(url,
                   level=logging.WARNING,
                   method="POST",
@@ -19,7 +20,14 @@ def apply_handler(url,
                   timeout=10,
                   req_kwargs=None,
                   source_path=None,
+                  lazy=False,
                   ):
+    if lazy:
+        logging.basicConfig(
+            format=FORMAT,
+            level=logging.INFO,
+        )
+    
     handler = MyHTTPHandler(
         url, interested=interested,
         method=method, level=level,

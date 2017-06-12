@@ -4,16 +4,17 @@ from __future__ import unicode_literals, division
 import inspect
 import collections
 import traceback
+import random
 
 __version__ = (2017, 5, 30, 1)
 __author__ = "Aploium<i@z.codes>"
 
 DEFAULT_MAXDEPTH = 2
-DEFAULT_MAXLEN = 2048
+DEFAULT_MAXLEN = 1024
 BASIC_PADDING_LENGTH = 4
 PADDING_STEP = 4
 DEFAULT_MASKED_KEYWORDS = ("secret", "password", "passwd", "token", "access_key")
-MAX_SINGLE_VAR_LEN = 512
+MAX_SINGLE_VAR_LEN = 256
 
 
 def attributes(var,
@@ -35,7 +36,7 @@ def attributes(var,
         
         if not isinstance(var, (dict, list, tuple, set)):
             try:
-                _repr_var = repr(var)
+                _repr_var = repr(var)[:maxlen]
             except:
                 _repr_var = traceback.format_exc()
             
@@ -49,6 +50,10 @@ def attributes(var,
     else:
         from_dict = True
         names = var.keys()
+    
+    if len(names) > max_single_var_len:
+        output += "[WARNING {} ITEMS IGNORED] ".format(len(names) - max_single_var_len)
+        names = random.sample(names, max_single_var_len)
     
     half_len = maxlen // 2
     
@@ -100,19 +105,18 @@ def attributes(var,
                     nosub = True
                     break
         
-        ori_subval_str = subval_str
-        
         rec = False
         
         if len(subval_str) > maxlen:
             str_prefix = "[OMITTED WARNING!]"
             subval_str = subval_str[:half_len] \
                          + " ###omit:{}### ".format(len(subval_str) - maxlen) \
-                         + subval_str[half_len:]
+                         + subval_str[-half_len:]
         
         subval_str = str_prefix + subval_str
-        
+        ori_subval_str = ""
         if interested is not None and max_depth and not nosub:
+            ori_subval_str = subval_str[:maxlen]
             for needle in interested:
                 if needle in type_str or subval_str is True:
                     subval_str = attributes(
