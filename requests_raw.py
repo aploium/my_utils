@@ -120,11 +120,18 @@ def patch_http_client(raw_func):
 
         # 顺便也记录下IP好了, requests本身也没有记录IP的功能
         try:
+            # 对于HTTP请求, 这样就能正常地获取到ip和端口
             self.source_ip = self._raw_fp.raw._sock.getsockname()
             self.dest_ip = self._raw_fp.raw._sock.getpeername()
         except:
-            self.source_ip = None
-            self.dest_ip = None
+            try:
+                # 对于HTTPS, 需要再往下一层才能拿到ip和端口
+                # QAQ 真是不科学...居然要深入这么多层才能拿到
+                self.source_ip = self._raw_fp.raw._sock.socket.getsockname()
+                self.dest_ip = self._raw_fp.raw._sock.socket.getpeername()
+            except:
+                self.source_ip = None
+                self.dest_ip = None
 
         self.fp = HookedBufferedReader(self._raw_fp.raw)
         self.dumped = self.fp.dumped  # type: bytearray
@@ -138,6 +145,7 @@ def monkey_patch():
     global _already_patched
     if _already_patched or hasattr(http.client.HTTPResponse, "_original_begin"):
         return
+    logger.warning("monkey patching!")
     http.client.HTTPResponse._original_begin = http.client.HTTPResponse.begin
     http.client.HTTPResponse.begin = patch_http_client(http.client.HTTPResponse.begin)
     _already_patched = True
@@ -189,11 +197,13 @@ def decode_chunked(data):
     return dec_body
 
 
-def get_ip(resp):
+def get_addr(resp):
     """获取请求的source_ip 和 dest_ip"""
     # (source_ip, dest_ip)
     return resp.raw._original_response.source_ip, resp.raw._original_response.dest_ip
 
+
+get_ip = get_addr  # 历史兼容性的别名
 
 if __name__ == "__main__":
     import doctest
