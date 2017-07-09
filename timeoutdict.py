@@ -31,15 +31,24 @@ class TimeoutDict(collections.MutableMapping):
     >>> td["x"] = 1
     >>> del td["x"]
     >>> assert "x" not in td
+    >>> # test maxlen
+    >>> td = TimeoutDict(1, max_len=2)
+    >>> td.update({1:1, 2:2, 3:3})
+    >>> assert len(td) == 2
+    >>> td[4]=4
+    >>> td[5]=5
+    >>> assert len({1, 2, 3} & td.keys()) == 0, td
     """
     
     # noinspection PyMissingConstructor
-    def __init__(self, max_age):
+    def __init__(self, max_age, max_len=0):
         assert max_age >= 0
+        assert max_len >= 0
         
         self.data = collections.OrderedDict()
         self.oldest_time = time.time()
         self.max_age = max_age
+        self.max_len = max_len
     
     def oldest_item(self, with_time=False):
         key, time_value = next(iter(self.data.items()))
@@ -69,6 +78,7 @@ class TimeoutDict(collections.MutableMapping):
             del self.data[key]
         
         return len(del_list)
+
     def __getitem__(self, key):
         self.check_expire()
 
@@ -104,6 +114,9 @@ class TimeoutDict(collections.MutableMapping):
         return ((k, v[1]) for k, v in self.data.items())
     
     def __setitem__(self, key, item):
+        if self.max_len and len(self.data) == self.max_len:
+            # 若超过最大长度则删除最前面的
+            self.data.popitem(last=False)
         self.data[key] = (time.time(), item)
 
     def copy(self):
