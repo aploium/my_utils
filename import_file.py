@@ -8,7 +8,7 @@ import os
 
 
 def import_file(path, name=None, make_global=False):
-    name = name or os.path.splitext(os.path.basename(path))
+    name = name or os.path.splitext(os.path.basename(path))[0]
     spec = importlib.util.spec_from_file_location(name, path)
     module_ = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module_)
