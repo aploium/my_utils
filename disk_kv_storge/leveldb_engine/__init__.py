@@ -5,7 +5,25 @@ import sys
 import platform
 import functools
 
-import import_file
+# -------------------- begin import_file -------------
+import importlib.util
+import sys
+import os
+
+
+def import_file(path, name=None, make_global=False):
+    name = name or os.path.splitext(os.path.basename(path))[0]
+    spec = importlib.util.spec_from_file_location(name, path)
+    module_ = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module_)
+    
+    if make_global:
+        sys.modules[name] = module_
+    
+    return module_
+
+
+# -------------------- end import_file -------------
 
 _mode = None
 NAME = None
@@ -14,14 +32,14 @@ if platform.system() == "Windows":
     _dirname = os.path.dirname(os.path.abspath(__file__))
     if sys.version_info[:2] == (3, 6):
         try:
-            leveldb = import_file.import_file(os.path.join(_dirname, "leveldb_win_py36.pyd"), "leveldb")
+            leveldb = import_file(os.path.join(_dirname, "leveldb_win_py36.pyd"), "leveldb")
         except Exception as e:
             raise ImportError(str(e))
         NAME = "pyleveldb_win_py36"
     
     elif sys.version_info[:2] == (2, 7):
         try:
-            leveldb = import_file.import_file(os.path.join(_dirname, "leveldb_win_py27.pyd"), "leveldb")
+            leveldb = import_file(os.path.join(_dirname, "leveldb_win_py27.pyd"), "leveldb")
         except Exception as e:
             raise ImportError(str(e))
         NAME = "pyleveldb_win_py27"

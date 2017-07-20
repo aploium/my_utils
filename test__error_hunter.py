@@ -16,6 +16,7 @@ import err_hunter
 # log.info("info")
 
 
+
 def error_func():
     monkey = 3
     a = 1 / 0
