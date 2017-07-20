@@ -337,3 +337,5 @@ img/
 /mysql.local.conf
 /_temp/
 /ipip/ipip.datx
+!/disk_kv_storge/leveldb_engine/leveldb_win_py27.pyd
+!/disk_kv_storge/leveldb_engine/leveldb_win_py36.pyd

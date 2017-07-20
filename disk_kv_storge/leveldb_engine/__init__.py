@@ -26,7 +26,8 @@ def import_file(path, name=None, make_global=False):
 # -------------------- end import_file -------------
 
 _mode = None
-NAME = None
+VERBOSE_NAME = None
+NAME = "leveldb"
 
 if platform.system() == "Windows":
     _dirname = os.path.dirname(os.path.abspath(__file__))
@@ -35,14 +36,14 @@ if platform.system() == "Windows":
             leveldb = import_file(os.path.join(_dirname, "leveldb_win_py36.pyd"), "leveldb")
         except Exception as e:
             raise ImportError(str(e))
-        NAME = "pyleveldb_win_py36"
+        VERBOSE_NAME = "pyleveldb_win_py36"
     
     elif sys.version_info[:2] == (2, 7):
         try:
             leveldb = import_file(os.path.join(_dirname, "leveldb_win_py27.pyd"), "leveldb")
         except Exception as e:
             raise ImportError(str(e))
-        NAME = "pyleveldb_win_py27"
+        VERBOSE_NAME = "pyleveldb_win_py27"
     else:
         raise ImportError("unsupported version")
     _mode = "pyleveldb"
@@ -54,10 +55,10 @@ else:
         import leveldb
         
         _mode = "pyleveldb"
-        NAME = "pyleveldb_unix"
+        VERBOSE_NAME = "pyleveldb_unix"
     else:
         _mode = "plyvel"
-        NAME = "plyvel_leveldb_unix"
+        VERBOSE_NAME = "plyvel_leveldb_unix"
 
 # open
 
