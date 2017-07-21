@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 import time
 import collections
 
-__version__ = (1, 0, 0)
+__version__ = (1, 1, 0)
 
 
 class TimeoutDict(collections.UserDict):
@@ -16,12 +16,21 @@ class TimeoutDict(collections.UserDict):
     >>> time.sleep(0.5)
     >>> td["dog"] = 42
     >>> assert td["cat"] == "foobar"
+    >>> assert td.get("cat") == "foobar"
+    >>> assert td.get("non-exist", "a") == "a"
+    >>> assert tuple(td.keys()) == ("cat", "dog")
+    >>> assert tuple(td.values()) == ("foobar", 42)
+    >>> assert tuple(td.items()) == (("cat","foobar"), ("dog",42))
+    >>> assert len(td) == 2
     >>> assert td["dog"] == 42
     >>> time.sleep(0.6)
     >>> assert "cat" not in td
     >>> assert td["dog"] == 42
     >>> time.sleep(0.5)
     >>> assert "dog" not in td
+    >>> td["x"] = 1
+    >>> del td["x"]
+    >>> assert "x" not in td
     """
     
     # noinspection PyMissingConstructor
@@ -85,7 +94,7 @@ class TimeoutDict(collections.UserDict):
     
     def values(self):
         self.check_expire()
-        return (x[1] for x in self.values())
+        return (x[1] for x in self.data.values())
     
     def items(self):
         self.check_expire()
