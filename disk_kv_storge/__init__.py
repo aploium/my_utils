@@ -88,9 +88,22 @@ class DiskKV:
             meta_file = os.path.join(self.db_folder, "meta.json")
     
         json.dump(self.meta, open(meta_file, "w", encoding="utf8"), indent=4)
+
+    def __getitem__(self, item):
+        value = self.engine.get(self.db, item)
+    
+        if value is None:
+            raise KeyError("key {} not exist".format(value))
+    
+        return value
     
     def get(self, key):
-        return self.engine.get(self.db, key)
+        try:
+            value = self[key]
+        except KeyError:
+            return None
+    
+        return bytes(value)
     
     def put(self, key, value):
         return self.engine.put(self.db, key, value)
@@ -99,16 +112,27 @@ class DiskKV:
         return self.engine.delete(self.db, key)
     
     def keys(self):
-        return self.engine.keys(self.db)
+        return (bytes(x) for x in self.engine.keys(self.db))
     
     def values(self):
-        return self.engine.values(self.db)
+        return (bytes(x) for x in self.engine.values(self.db))
     
     def items(self):
-        return self.engine.items(self.db)
+        return ((bytes(k), bytes(v)) for k, v in self.engine.items(self.db))
     
     def close(self):
         return self.engine.close(self.db)
-    
-    def __iter__(self):
-        return self.keys()
+
+    __iter__ = keys
+    __setitem__ = put
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __contains__(self, item):
+        try:
+            value = self[item]
+        except KeyError:
+            return False
+        else:
+            return value is not None
