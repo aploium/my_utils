@@ -4,10 +4,10 @@ from __future__ import unicode_literals
 import time
 import collections
 
-__version__ = (1, 1, 0)
+__version__ = (1, 2, 0)
 
 
-class TimeoutDict(collections.UserDict):
+class TimeoutDict(collections.MutableMapping):
     """
     >>> import time
     >>> td = TimeoutDict(1)
@@ -72,25 +72,29 @@ class TimeoutDict(collections.UserDict):
     
     def __getitem__(self, key):
         self.check_expire()
-        
-        return super(self.__class__, self).__getitem__(key)[1]
+
+        return self.data[key][1]
     
     def __contains__(self, key):
         self.check_expire()
-        
-        return super(self.__class__, self).__contains__(key)
+
+        return key in self.data
     
     def __delitem__(self, key):
         self.check_expire()
-        super(self.__class__, self).__delitem__(key)
+        del self.data[key]
     
     def __len__(self):
         self.check_expire()
-        return super(self.__class__, self).__len__()
+        return len(self.data)
+
+    def __iter__(self):
+        self.check_expire()
+        return iter(self.data)
     
     def keys(self):
         self.check_expire()
-        return super(self.__class__, self).keys()
+        return self.data.keys()
     
     def values(self):
         self.check_expire()
@@ -101,4 +105,12 @@ class TimeoutDict(collections.UserDict):
         return ((k, v[1]) for k, v in self.data.items())
     
     def __setitem__(self, key, item):
-        super(self.__class__, self).__setitem__(key, (time.time(), item))
+        self.data[key] = (time.time(), item)
+
+    def copy(self):
+        new = self.__class__(self.max_age)
+        new.oldest_time = self.oldest_time
+        new.data = self.data.copy()
+
+    def __repr__(self):
+        return "{}<{}>".format(self.__class__.__name__, repr(self.data))
