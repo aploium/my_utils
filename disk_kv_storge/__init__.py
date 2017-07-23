@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # coding=utf-8
+from __future__ import unicode_literals
+import sys
 import os
 import json
-from io import open
 
 engines = {}
 best_engine = None
@@ -17,8 +18,18 @@ else:
 
 engines["best"] = best_engine
 
+if sys.version_info[0] == 2:
+    str_type = (str, unicode)
+else:
+    str_type = str
 
-class DiskKV:
+def _text_open(file,mode):
+    if sys.version_info[0] == 2:
+        return open(file, mode)
+    else:
+        return open(file, mode, encoding="utf8")
+
+class DiskKV(object):
     """
     
     >>> db = DiskKV("tempdb")
@@ -26,29 +37,25 @@ class DiskKV:
     >>> db.put(b"cat1",b"dog1")
     >>> db.put(b"cat2",b"dog2")
     >>> db.put(b"cat3",b"dog3")
-    >>> bytes(db.get(b"cat1"))
-    b'dog1'
-    >>> bytes(db.get(b"cat2"))
-    b'dog2'
+    >>> assert bytes(db.get(b"cat1")) == b'dog1'
+    >>> assert bytes(db.get(b"cat2")) == b'dog2'
     >>> db.put(b"cat3",b"monkey")
-    >>> bytes(db.get(b"cat3"))
-    b'monkey'
+    >>> assert bytes(db.get(b"cat3")) == b'monkey'
     >>> assert frozenset([b"cat",b"cat1",b"cat2",b"cat3"]) == frozenset(bytes(x) for x in db.keys())
     >>> assert frozenset([b"dog",b"dog1",b"dog2",b"monkey"]) == frozenset(bytes(x) for x in db.values())
     >>> assert {b"cat":b"dog",b"cat1":b"dog1",b"cat2":b"dog2",b"cat3":b"monkey"} == {bytes(k):bytes(v) for k,v in db.items()}
     >>> db.close()
     >>> del db
-    >>> pass
-    >>> pass
-    >>> pass
+    >>>
     >>> db2 = DiskKV("tempdb")
     >>> assert {b"cat":b"dog",b"cat1":b"dog1",b"cat2":b"dog2",b"cat3":b"monkey"} == {bytes(k):bytes(v) for k,v in db2.items()}
     """
 
     def __init__(self, db_folder, engine=None):
         self.db_folder = db_folder
-    
-        os.makedirs(self.db_folder, exist_ok=True)
+        
+        if not os.path.exists(self.db_folder):
+            os.makedirs(self.db_folder)
     
         self._load_meta()
     
@@ -56,7 +63,7 @@ class DiskKV:
             engine = self.meta.get("engine")
         if engine is None:
             engine = engines["best"]
-        elif isinstance(engine, str):
+        elif isinstance(engine, str_type):
             engine = engines[engine]
     
         self.engine = engine
@@ -77,7 +84,7 @@ class DiskKV:
             meta_file = os.path.join(self.db_folder, "meta.json")
     
         if os.path.exists(meta_file):
-            meta = json.load(open(meta_file, "r", encoding="utf8"))
+            meta = json.load(_text_open(meta_file, "r"))
         else:
             meta = {}
         self.meta = meta
@@ -87,7 +94,7 @@ class DiskKV:
         if meta_file is None:
             meta_file = os.path.join(self.db_folder, "meta.json")
     
-        json.dump(self.meta, open(meta_file, "w", encoding="utf8"), indent=4)
+        json.dump(self.meta, _text_open(meta_file, "w"), indent=4)
 
     def __getitem__(self, item):
         value = self.engine.get(self.db, item)

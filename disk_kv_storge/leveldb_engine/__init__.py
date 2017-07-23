@@ -1,46 +1,42 @@
 #!/usr/bin/env python3
 # coding=utf-8
+from __future__ import unicode_literals
 import os
 import sys
 import platform
 import functools
 
-# -------------------- begin import_file -------------
-import importlib.util
-import sys
-import os
 
-
-def import_file(path, name=None, make_global=False):
-    name = name or os.path.splitext(os.path.basename(path))[0]
-    spec = importlib.util.spec_from_file_location(name, path)
-    module_ = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module_)
+def import_helper(relpath, name):
+    dirname = os.path.dirname(os.path.abspath(__file__))
+    abspath = os.path.join(dirname, relpath)
+    sys.path.insert(0, abspath)
     
-    if make_global:
-        sys.modules[name] = module_
-    
+    if sys.version_info[0] == 2:
+        import imp
+        module_ = imp.load_module(name, *imp.find_module(name))
+    else:
+        import importlib
+        module_ = importlib.import_module(name)
+    sys.path.remove(abspath)
     return module_
 
-
-# -------------------- end import_file -------------
 
 _mode = None
 VERBOSE_NAME = None
 NAME = "leveldb"
 
 if platform.system() == "Windows":
-    _dirname = os.path.dirname(os.path.abspath(__file__))
     if sys.version_info[:2] == (3, 6):
         try:
-            leveldb = import_file(os.path.join(_dirname, "leveldb_win_py36.pyd"), "leveldb")
+            leveldb = import_helper("leveldb_win_py36", "leveldb")
         except Exception as e:
             raise ImportError(str(e))
         VERBOSE_NAME = "pyleveldb_win_py36"
     
     elif sys.version_info[:2] == (2, 7):
         try:
-            leveldb = import_file(os.path.join(_dirname, "leveldb_win_py27.pyd"), "leveldb")
+            leveldb = import_helper("leveldb_win_py27", "leveldb")
         except Exception as e:
             raise ImportError(str(e))
         VERBOSE_NAME = "pyleveldb_win_py27"
@@ -61,7 +57,6 @@ else:
         VERBOSE_NAME = "plyvel_leveldb_unix"
 
 # open
-
 if _mode == "plyvel":
     open = functools.partial(leveldb.DB, create_if_missing=True)
     get = leveldb.DB.get
@@ -71,6 +66,7 @@ if _mode == "plyvel":
     keys = functools.partial(leveldb.DB.iterator, include_value=False)
     values = functools.partial(leveldb.DB.iterator, include_key=False)
     items = leveldb.DB.iterator
+
 elif _mode == "pyleveldb":
     open = leveldb.LevelDB
     get = leveldb.LevelDB.Get
@@ -82,10 +78,9 @@ elif _mode == "pyleveldb":
     
     
     def values(self, *args, **kwargs):
-        yield from (x[1] for x in items(self, *args, **kwargs))
-        
-        
-        # values = functools.partial(leveldb.DB.iterator, include_key=False)
+        for x in items(self, *args, **kwargs):
+            yield x[1]
+
 
 else:
     raise ImportError("bad mode: {}".format(_mode))
