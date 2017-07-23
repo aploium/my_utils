@@ -2,7 +2,6 @@
 # coding=utf-8
 import os
 import json
-import collections
 from io import open
 
 engines = {}
@@ -19,7 +18,7 @@ else:
 engines["best"] = best_engine
 
 
-class DiskKV(collections.MutableMapping):
+class DiskKV:
     """
     
     >>> db = DiskKV("tempdb")
@@ -90,6 +89,13 @@ class DiskKV(collections.MutableMapping):
     
         json.dump(self.meta, open(meta_file, "w", encoding="utf8"), indent=4)
 
+    def __getitem__(self, item):
+        value = self.engine.get(self.db, item)
+    
+        if value is None:
+            raise KeyError("key {} not exist".format(value))
+    
+        return value
     
     def get(self, key):
         try:
@@ -117,19 +123,14 @@ class DiskKV(collections.MutableMapping):
     def close(self):
         return self.engine.close(self.db)
 
-    def __getitem__(self, item):
-        value = self.engine.get(self.db, item)
-    
-        if value is None:
-            raise KeyError("key {} not exist".format(value))
-    
-        return value
     __iter__ = keys
     __setitem__ = put
-    __delitem__ = delete
 
     def __len__(self):
-        return len(self.keys())
+        count = 0
+        for _ in self.keys():
+            count += 1
+        return count
 
     def __contains__(self, item):
         try:
