@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # coding=utf-8
 from __future__ import absolute_import, unicode_literals
-import os
-import sys
-import traceback
+
+import getpass
+import inspect
 import logging
 import logging.handlers
-import requests
-import inspect
-import getpass
+import os
 import platform
+import sys
+import traceback
+
+import requests
+
 from . import frame_operations
 from . import traceback2
 

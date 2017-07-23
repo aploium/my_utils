@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # coding=utf-8
-import sys
 import inspect
-from .attr import attributes
+import sys
+
 from . import myinspect
+from .attr import attributes
 
 PY2 = (sys.version_info[0] == 2)
 

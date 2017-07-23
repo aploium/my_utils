@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # coding=utf-8
 from __future__ import absolute_import
+
 import logging
-from .mylogger import MyHTTPHandler
+
 from .traceback2 import format_exc, print_exc
+from .mylogger import MyHTTPHandler
 from .third_party import logzero
 
 __version__ = (2017, 7, 23, 1)
