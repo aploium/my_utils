@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 # coding=utf-8
+from __future__ import unicode_literals
 import os
 import sys
 import traceback
 
 from . import frame_operations
+
+if sys.version_info[0] == 3:
+    walk_tb = traceback.walk_tb
+else:
+    def walk_tb(tb):
+        while tb is not None:
+            yield tb.tb_frame, tb.tb_lineno
+            tb = tb.tb_next
 
 
 def format_exc(interested=None, source_path=None, with_normal=True):
@@ -15,7 +24,7 @@ def format_exc(interested=None, source_path=None, with_normal=True):
     
     _traceback = ""
     
-    for frame, lineno in traceback.walk_tb(sys.exc_info()[2]):
+    for frame, lineno in walk_tb(sys.exc_info()[2]):
         abs_path = frame.f_code.co_filename
         if ".." not in os.path.relpath(abs_path, source_path):
             _traceback += frame_operations.frame_format(

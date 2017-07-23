@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding=utf-8
+from __future__ import unicode_literals
 import requests
 import err_hunter
 
@@ -7,7 +8,7 @@ import err_hunter
 def error_func():
     monkey = 3
     a = 1 / 0  # this will raise error
-    universe = 42
+    universe = 42  # never reached
 
 
 def func():

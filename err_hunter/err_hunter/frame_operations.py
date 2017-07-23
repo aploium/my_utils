@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
+from __future__ import unicode_literals
+
 import inspect
 import sys
 
@@ -46,9 +48,9 @@ def frame_format(frame, interested=None, linerange=5, frame_lineno=None):
     frag_first_lineno += first_lineno
     source_lines = "".join(
         (
-            "{:<4}{}".format(i + frag_first_lineno, x)
+            "    {:<4}{}".format(i + frag_first_lineno, x)
             if not x.startswith("-")
-            else x
+            else "    {}".format(x)
         )
         for i, x in enumerate(source_lines)
     )
@@ -59,8 +61,9 @@ def frame_format(frame, interested=None, linerange=5, frame_lineno=None):
 {global_vars}
 #----local_vars----#
 {local_vars}
-#------------------#""".format(
+#------------------------------------#
+""".format(
         abs_path=abs_path, frame_lineno=frame_lineno, func_name=func_name,
-        source_lines=source_lines, global_vars=global_vars.rstrip(), local_vars=local_vars.rstrip()
+        source_lines=source_lines.rstrip("\r\n"), global_vars=global_vars.rstrip(), local_vars=local_vars.rstrip()
     )
     return text

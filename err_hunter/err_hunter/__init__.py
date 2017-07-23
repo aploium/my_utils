@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # coding=utf-8
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 import logging
 
@@ -39,17 +39,19 @@ def getLogger(name=None, logfile=None, level=logging.INFO, formatter=None, maxBy
         maxBytes=0, backupCount=0, fileLoglevel=None,
     )
 
-def apply_handler(url,
-                  level=logging.WARNING,
-                  method="POST",
-                  interested=None,
-                  parent_name=None,
-                  callback=None,
-                  timeout=10,
-                  req_kwargs=None,
-                  source_path=None,
-                  lazy=False,
-                  ):
+
+def apply_handler(
+        url,
+        level=logging.WARNING,
+        method="POST",
+        interested=None,
+        parent_name=None,
+        callback=None,
+        timeout=10,
+        req_kwargs=None,
+        source_path=None,
+        lazy=False,
+):
     if lazy:
         logging.basicConfig(
             format=FORMAT,

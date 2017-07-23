@@ -17,17 +17,18 @@ DEFAULT_MASKED_KEYWORDS = ("secret", "password", "passwd", "token", "access_key"
 MAX_SINGLE_VAR_LEN = 256
 
 
-def attributes(var,
-               interested=None,
-               maxlen=DEFAULT_MAXLEN,
-               skip_private=True,
-               max_depth=DEFAULT_MAXDEPTH,
-               masked_keywords=DEFAULT_MASKED_KEYWORDS,
-               from_dict=None,
-               with_sepline=False,
-               max_single_var_len=MAX_SINGLE_VAR_LEN,
-               _padding=BASIC_PADDING_LENGTH,
-               ):
+def attributes(
+        var,
+        interested=None,
+        maxlen=DEFAULT_MAXLEN,
+        skip_private=True,
+        max_depth=DEFAULT_MAXDEPTH,
+        masked_keywords=DEFAULT_MASKED_KEYWORDS,
+        from_dict=None,
+        with_sepline=False,
+        max_single_var_len=MAX_SINGLE_VAR_LEN,
+        _padding=BASIC_PADDING_LENGTH,
+):
     if _padding == BASIC_PADDING_LENGTH:
         if with_sepline:
             output = "#### BEGIN ATTRIBUTES {} ####\n".format(type(var))
