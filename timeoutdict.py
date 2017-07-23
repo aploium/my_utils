@@ -69,7 +69,6 @@ class TimeoutDict(collections.MutableMapping):
             del self.data[key]
         
         return len(del_list)
-    
     def __getitem__(self, key):
         self.check_expire()
 
