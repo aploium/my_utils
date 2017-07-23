@@ -12,7 +12,7 @@ if sys.version_info[0] == 3:
         """Extract the block of code at the top of the given list of lines."""
         blockfinder = inspect.BlockFinder()
         try:
-            tokens = inspect.tokenize.generate_tokens(next(iter(lines)))
+            tokens = inspect.tokenize.generate_tokens(iter(lines).__next__)
             for _token in tokens:
                 blockfinder.tokeneater(*_token)
         except (inspect.EndOfBlock, IndentationError):
