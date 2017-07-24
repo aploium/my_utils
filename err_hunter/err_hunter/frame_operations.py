@@ -45,6 +45,10 @@ def frame_format(frame, interested=None, linerange=5, frame_lineno=None):
                    frag_first_lineno
                    : frame_lineno - first_lineno + linerange
                    ]
+    
+    if PY2:  # convert bytes to unicode
+        source_lines = [line.decode("utf8") for line in source_lines]
+    
     frag_first_lineno += first_lineno
     source_lines = "".join(
         (
