@@ -4,6 +4,9 @@ from __future__ import unicode_literals
 import sys
 import os
 import json
+import collections
+import tempfile
+import shutil
 
 engines = {}
 best_engine = None
@@ -29,30 +32,18 @@ def _text_open(file,mode):
     else:
         return open(file, mode, encoding="utf8")
 
-class DiskKV(object):
-    """
-    
-    >>> db = DiskKV("tempdb")
-    >>> db.put(b"cat",b"dog")
-    >>> db.put(b"cat1",b"dog1")
-    >>> db.put(b"cat2",b"dog2")
-    >>> db.put(b"cat3",b"dog3")
-    >>> assert bytes(db.get(b"cat1")) == b'dog1'
-    >>> assert bytes(db.get(b"cat2")) == b'dog2'
-    >>> db.put(b"cat3",b"monkey")
-    >>> assert bytes(db.get(b"cat3")) == b'monkey'
-    >>> assert frozenset([b"cat",b"cat1",b"cat2",b"cat3"]) == frozenset(bytes(x) for x in db.keys())
-    >>> assert frozenset([b"dog",b"dog1",b"dog2",b"monkey"]) == frozenset(bytes(x) for x in db.values())
-    >>> assert {b"cat":b"dog",b"cat1":b"dog1",b"cat2":b"dog2",b"cat3":b"monkey"} == {bytes(k):bytes(v) for k,v in db.items()}
-    >>> db.close()
-    >>> del db
-    >>>
-    >>> db2 = DiskKV("tempdb")
-    >>> assert {b"cat":b"dog",b"cat1":b"dog1",b"cat2":b"dog2",b"cat3":b"monkey"} == {bytes(k):bytes(v) for k,v in db2.items()}
-    """
 
-    def __init__(self, db_folder, engine=None):
-        self.db_folder = db_folder
+class BaseDiskKV(collections.MutableMapping):
+    def __init__(self, db_folder=None, engine=None, auto_delete=None):
+        if db_folder is None:
+            self.db_folder = tempfile.mkdtemp(prefix="{}_".format(self.__class__.__name__))
+            if auto_delete is None:
+                auto_delete = True
+        else:
+            self.db_folder = db_folder
+            if auto_delete is None:
+                auto_delete = False
+        self.auto_delete = auto_delete
         
         if not os.path.exists(self.db_folder):
             os.makedirs(self.db_folder)
@@ -95,47 +86,78 @@ class DiskKV(object):
             meta_file = os.path.join(self.db_folder, "meta.json")
     
         json.dump(self.meta, _text_open(meta_file, "w"), indent=4)
-
-    def __getitem__(self, item):
-        value = self.engine.get(self.db, item)
+    
+    def rawget(self, key):
+        return self.engine.get(self.db, key)
+    
+    def __getitem__(self, key):
+        if self.key_encode is not None:
+            key = self.key_encode(key)
+        
+        value = self.rawget(key)
     
         if value is None:
-            raise KeyError("key {} not exist".format(value))
+            raise KeyError("key {} not exist".format(key))
+        
+        if self.value_decode is not None:
+            return self.value_decode(value)
+        else:
+            return value
     
-        return value
-    
-    def get(self, key):
+    def get(self, key, default=None):
         try:
             value = self[key]
         except KeyError:
-            return None
-    
-        return bytes(value)
+            return default
+
+        return value
     
     def put(self, key, value):
+        if self.key_encode is not None:
+            key = self.key_encode(key)
+        if self.value_encode is not None:
+            value = self.value_encode(value)
         return self.engine.put(self.db, key, value)
     
-    def delete(self, key):
+    def delete(self, key, decode=True):
+        if self.key_encode is not None and decode:
+            key = self.key_encode(key)
         return self.engine.delete(self.db, key)
     
-    def keys(self):
-        return (bytes(x) for x in self.engine.keys(self.db))
+    def keys(self, decode=True):
+        if self.key_decode is not None and decode:
+            return (self.key_decode(x) for x in self.engine.keys(self.db))
+        else:
+            return self.engine.keys(self.db)
     
     def values(self):
-        return (bytes(x) for x in self.engine.values(self.db))
+        if self.value_decode is not None:
+            return (self.value_decode(x) for x in self.engine.values(self.db))
+        else:
+            return self.engine.values(self.db)
     
     def items(self):
-        return ((bytes(k), bytes(v)) for k, v in self.engine.items(self.db))
+        if self.key_decode is not None:
+            if self.value_decode is not None:
+                return ((self.key_decode(k), self.value_decode(v)) for k, v in self.engine.items(self.db))
+            else:
+                return ((self.key_decode(k), v) for k, v in self.engine.items(self.db))
+        else:
+            if self.value_decode:
+                return ((k, self.value_decode(v)) for k, v in self.engine.items(self.db))
+            else:
+                return self.engine.items(self.db)
     
     def close(self):
         return self.engine.close(self.db)
 
     __iter__ = keys
     __setitem__ = put
+    __delitem__ = delete
 
     def __len__(self):
         count = 0
-        for _ in self.keys():
+        for _ in self.keys(decode=False):
             count += 1
         return count
 
@@ -146,3 +168,40 @@ class DiskKV(object):
             return False
         else:
             return value is not None
+    
+    def __del__(self):
+        if self.auto_delete:
+            self.close()
+            del self.db
+            shutil.rmtree(self.db_folder)
+    
+    key_encode = None
+    key_decode = None
+    value_encode = None
+    value_decode = None
+
+
+class DiskKV(BaseDiskKV):
+    """
+    >>> import tempfile
+    >>> tempdb_path = tempfile.mkdtemp()
+    >>> db = DiskKV(tempdb_path)
+    >>> db.put(b"cat",b"dog")
+    >>> db.put(b"cat1",b"dog1")
+    >>> db.put(b"cat2",b"dog2")
+    >>> db.put(b"cat3",b"dog3")
+    >>> assert db.get(b"cat1") == b'dog1'
+    >>> assert db.get(b"cat2") == b'dog2'
+    >>> db.put(b"cat3",b"monkey")
+    >>> assert db.get(b"cat3") == b'monkey'
+    >>> assert frozenset([b"cat",b"cat1",b"cat2",b"cat3"]) == frozenset(x for x in db.keys())
+    >>> assert frozenset([b"dog",b"dog1",b"dog2",b"monkey"]) == frozenset(x for x in db.values())
+    >>> assert {b"cat":b"dog",b"cat1":b"dog1",b"cat2":b"dog2",b"cat3":b"monkey"} == {k:v for k,v in db.items()}
+    >>> db.close()
+    >>> del db
+    >>>
+    >>> db2 = DiskKV(tempdb_path)
+    >>> assert {b"cat":b"dog",b"cat1":b"dog1",b"cat2":b"dog2",b"cat3":b"monkey"} == {k:v for k,v in db2.items()}
+    """
+    key_decode = bytes
+    value_decode = bytes

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # coding=utf-8
-from __future__ import unicode_literals
+from __future__ import unicode_literals, division
 import time
 import collections
 
-__version__ = (1, 2, 0)
+__version__ = (1, 3, 0)
 
 
 class TimeoutDict(collections.MutableMapping):
