@@ -36,8 +36,13 @@ def frame_format(frame, interested=None, linerange=5, frame_lineno=None):
     
     frame_lineno = frame_lineno or frame.f_lineno
     source_lines, first_lineno = myinspect.getsourcelines(frame.f_code)
+    
+    running_line = source_lines[frame_lineno - first_lineno]
+    if PY2:
+        running_line = running_line.decode("utf8")
+    
     source_lines[frame_lineno - first_lineno] = "--->" \
-                                                + source_lines[frame_lineno - first_lineno].rstrip("\r\n ") \
+                                                + running_line.rstrip("\r\n ") \
                                                 + "  <---\n"
     
     frag_first_lineno = max(0, frame_lineno - first_lineno - linerange)
@@ -47,7 +52,14 @@ def frame_format(frame, interested=None, linerange=5, frame_lineno=None):
                    ]
     
     if PY2:  # convert bytes to unicode
-        source_lines = [line.decode("utf8") for line in source_lines]
+        _source_lines = []
+        for line in source_lines:
+            try:
+                line = line.decode("utf8")
+            except:
+                line = repr(line)
+            _source_lines.append(line)
+        source_lines = _source_lines
     
     frag_first_lineno += first_lineno
     source_lines = "".join(

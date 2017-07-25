@@ -58,7 +58,8 @@ else:
 
 # open
 if _mode == "plyvel":
-    open = functools.partial(leveldb.DB, create_if_missing=True)
+    def open(dbpath, block_cache_size=8 * (2 << 20)):
+        return leveldb.DB(dbpath, lru_cache_size=block_cache_size, create_if_missing=True)
     get = leveldb.DB.get
     put = leveldb.DB.put
     delete = leveldb.DB.delete

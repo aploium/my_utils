@@ -1,12 +1,30 @@
 #!/usr/bin/env python3
 # coding=utf-8
-from __future__ import unicode_literals, division, print_function
+from __future__ import unicode_literals, division, print_function, absolute_import
+import sys
 import time
 import json
 import struct
 
-from disk_kv_storge import BaseDiskKV
+try:
+    from . import BaseDiskKV
+except (ImportError, ValueError):
+    # noinspection PyUnresolvedReferences
+    from disk_kv_storge import BaseDiskKV
 
+if sys.version_info[0] == 2:
+    # noinspection PyUnresolvedReferences
+    string_types = (str, unicode)
+    # noinspection PyUnresolvedReferences
+    integer_types = (int, long)
+    # noinspection PyUnresolvedReferences
+    text_type = unicode
+    binary_type = (str, bytes, bytearray)
+else:
+    string_types = str
+    integer_types = int
+    text_type = str
+    binary_type = (bytes, bytearray)
 
 def pack_timestamp(value, timestamp=None):
     time_bytes = struct.pack("!d", timestamp or time.time())
@@ -24,9 +42,9 @@ def unpack_timestamp(b):
 
 # --------------------------------------------------------
 def _key_encode(key):
-    if isinstance(key, (bytes, bytearray)):
+    if isinstance(key, binary_type):
         return key
-    if isinstance(key, int):
+    if isinstance(key, integer_types):
         key = str(key)
     key = key.encode("utf8")
     return key
@@ -104,9 +122,8 @@ class DiskTimeoutDict(BaseDiskKV):
     >>> for i in range(10000): assert str(i) not in td
     """
     
-    def __init__(self, max_age, check_interval=None,
-                 db_folder=None, engine=None, auto_delete=None):
-        super(DiskTimeoutDict, self).__init__(db_folder=db_folder, engine=engine, auto_delete=auto_delete)
+    def __init__(self, max_age, check_interval=None, **kwargs):
+        super(DiskTimeoutDict, self).__init__(**kwargs)
         
         if check_interval is None:
             check_interval = max_age / 10.0

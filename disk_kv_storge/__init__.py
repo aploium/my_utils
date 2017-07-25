@@ -6,13 +6,16 @@ import os
 import json
 import collections
 import tempfile
-import shutil
 
 engines = {}
 best_engine = None
 
 try:
-    from disk_kv_storge import leveldb_engine
+    try:
+        from . import leveldb_engine
+    except (ImportError, ValueError):
+        # noinspection PyUnresolvedReferences
+        from disk_kv_storge import leveldb_engine
 except ImportError:
     raise
 else:
@@ -22,6 +25,7 @@ else:
 engines["best"] = best_engine
 
 if sys.version_info[0] == 2:
+    # noinspection PyUnresolvedReferences
     str_type = (str, unicode)
 else:
     str_type = str
@@ -34,7 +38,7 @@ def _text_open(file,mode):
 
 
 class BaseDiskKV(collections.MutableMapping):
-    def __init__(self, db_folder=None, engine=None, auto_delete=None):
+    def __init__(self, db_folder=None, engine=None, auto_delete=None, block_cache_size=8 * (2 << 20)):
         if db_folder is None:
             self.db_folder = tempfile.mkdtemp(prefix="{}_".format(self.__class__.__name__))
             if auto_delete is None:
@@ -65,8 +69,8 @@ class BaseDiskKV(collections.MutableMapping):
             self.data_path = self.meta["data_path"]
         else:
             self.data_path = os.path.join(self.db_folder, "data")
-    
-        self.db = engine.open(self.data_path)
+
+        self.db = engine.open(self.data_path, block_cache_size=block_cache_size)
     
         self._save_meta()
 
@@ -173,6 +177,7 @@ class BaseDiskKV(collections.MutableMapping):
         if self.auto_delete:
             self.close()
             del self.db
+            import shutil
             shutil.rmtree(self.db_folder)
     
     key_encode = None
@@ -205,3 +210,10 @@ class DiskKV(BaseDiskKV):
     """
     key_decode = bytes
     value_decode = bytes
+
+
+try:
+    from .disk_timeoutdict import DiskTimeoutDict
+except (ImportError, ValueError):
+    # noinspection PyUnresolvedReferences
+    from disk_kv_storge.disk_timeoutdict import DiskTimeoutDict

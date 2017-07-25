@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # coding=utf-8
-from __future__ import unicode_literals
+from __future__ import unicode_literals, print_function
 import os
 import sys
 import traceback
@@ -38,4 +38,7 @@ def format_exc(interested=None, source_path=None, with_normal=True):
 
 
 def print_exc(interested=None, source_path=None, with_normal=True):
-    print(format_exc(interested=interested, source_path=source_path, with_normal=with_normal))
+    try:
+        print(format_exc(interested=interested, source_path=source_path, with_normal=with_normal))
+    except:
+        traceback.print_exc()
