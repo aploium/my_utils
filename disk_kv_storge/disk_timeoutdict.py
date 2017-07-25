@@ -93,7 +93,7 @@ class DiskTimeoutDict(BaseDiskKV):
     >>> assert "x" not in td
     >>>
     >>> # test json storge
-    >>> _dic = {"mon":[1, 2, 3, 4, {"cat": 1}]}
+    >>> _dic = {"mon":[1, 2, 3, 4, {"cat": 1, b"binkey": "中文"}]}
     >>> td["monkey"] = _dic
     >>> assert td["monkey"] == _dic
     >>>
