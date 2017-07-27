@@ -41,7 +41,7 @@ class TimeoutDict(collections.MutableMapping):
     """
     
     # noinspection PyMissingConstructor
-    def __init__(self, max_age, max_len=0):
+    def __init__(self, max_age, max_len=0, **kwargs):
         assert max_age >= 0
         assert max_len >= 0
         
