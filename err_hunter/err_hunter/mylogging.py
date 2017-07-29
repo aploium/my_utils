@@ -27,7 +27,7 @@ def colorConfig(level=logging.INFO):
 
 def _get_outframe_main(frame):
     outframe = frame.f_back
-    return outframe.f_globals["__main__"]
+    return outframe.f_globals["__name__"]
 
 
 def getLogger(name=None, logfile=None, level=logging.INFO,

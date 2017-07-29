@@ -11,5 +11,8 @@ from .traceback2 import format_exc, print_exc
 from .mylogger import MyHTTPHandler, apply_handler
 from .mylogging import basicConfig, colorConfig, getLogger
 
-__version__ = (2017, 7, 28, 0)
+VERSION = (0, 5, 1, 0)
+VERSION_STR = "{}.{}.{}.{}".format(*VERSION)
+
+__version__ = VERSION
 __author__ = "Aploium<i@z.codes>"
