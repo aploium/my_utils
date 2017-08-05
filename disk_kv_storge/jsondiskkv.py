@@ -61,18 +61,18 @@ except ImportError:
     
     
     def _value_encode(value):
-        return json.dumps(value, ensure_ascii=False).encode("utf-8")
+        return json.dumps(value, ensure_ascii=False).encode("UTF-8")
     
     
     def _value_decode(value):
-        return json.loads(value.decode("utf-8"))
+        return json.loads(value.decode("UTF-8"))
 else:
     def _value_encode(value):
         return msgpack.dumps(value, use_bin_type=True)
     
     
     def _value_decode(value):
-        return msgpack.loads(value, encoding='utf-8')
+        return msgpack.loads(value, encoding='UTF-8', use_list=False)
 
 
 # -------------------------

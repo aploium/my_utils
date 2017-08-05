@@ -69,14 +69,14 @@ except ImportError:
     
     def _value_encode(value):
         value = json.dumps(value)
-        value = value.encode("utf-8")
+        value = value.encode("UTF-8")
         value = pack_timestamp(value)
         return value
     
     
     def _value_decode(value):
         value = unpack_timestamp(value)[0]
-        value = value.decode("utf-8")
+        value = value.decode("UTF-8")
         value = json.loads(value)
         return value
 else:
@@ -88,7 +88,7 @@ else:
     
     def _value_decode(value):
         value = unpack_timestamp(value)[0]
-        value = msgpack.loads(value, encoding='utf-8')
+        value = msgpack.loads(value, encoding='UTF-8', use_list=False)
         return value
 
 
