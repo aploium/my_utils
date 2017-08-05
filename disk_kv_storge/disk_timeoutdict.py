@@ -5,6 +5,9 @@ import sys
 import time
 import json
 import struct
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     from . import BaseDiskKV
@@ -42,23 +45,28 @@ def unpack_timestamp(b):
 
 # --------------------------------------------------------
 def _key_encode(key):
+    if isinstance(key, text_type):
+        return key.encode("utf8")
     if isinstance(key, binary_type):
         return key
     if isinstance(key, integer_types):
         key = str(key)
-    key = key.encode("utf8")
-    return key
+    return key.encode("utf8")
 
 
 def _key_decode(key):
-    key = key.decode("utf8")
-    return key
+    return key.decode("utf8")
 
 
 # --------------------------------------------------------
 try:
     import msgpack
 except ImportError:
+    logger.warning(
+        "msgpack not found, please consider install msgpack (http://msgpack.org/) for serialization, "
+        "it's better than json.  Fallback to builtin json for serialization"
+    )
+    
     def _value_encode(value):
         value = json.dumps(value)
         value = value.encode("utf-8")
