@@ -217,3 +217,9 @@ try:
 except (ImportError, ValueError):
     # noinspection PyUnresolvedReferences
     from disk_kv_storge.disk_timeoutdict import DiskTimeoutDict
+
+try:
+    from .jsondiskkv import JsonDiskKV
+except (ImportError, ValueError):
+    # noinspection PyUnresolvedReferences
+    from disk_kv_storge.jsondiskkv import JsonDiskKV
