@@ -30,7 +30,7 @@ def _get_outframe_main(frame):
     return outframe.f_globals["__name__"]
 
 
-def getLogger(name=None, logfile=None, level=logging.INFO,
+def getLogger(name=None, logfile=None, level=logging.NOTSET,
               formatter=None, maxBytes=0, backupCount=0, fileLoglevel=None):
     name = name or _get_outframe_main(inspect.currentframe())
     
