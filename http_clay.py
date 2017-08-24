@@ -324,7 +324,7 @@ class BareRequest(BaseHTTPRequestHandler):
 
     @property
     def protocol(self):
-        return self.protocol_version
+        return self.request_version
     
     @property
     def method(self):
