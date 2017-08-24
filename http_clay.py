@@ -222,6 +222,15 @@ class HTTPHeaders(OrderedMultiDict):
         key = self._find_real_key(key)
         return super(HTTPHeaders, self).__contains__(key)
 
+    def update(self, other):  # TODO: 改成更加高性能的封装
+        if hasattr(other, "items"):
+            for k, v in other.items():
+                self[k] = v
+    
+        else:
+            for k, v in other:
+                self[k] = v
+
 
 class BareRequest(BaseHTTPRequestHandler):
     def __init__(self, request_bin, scheme="http", real_host=None, port=None):
@@ -295,6 +304,7 @@ class BareRequest(BaseHTTPRequestHandler):
             return HTTPHeaders(self.headers.items())
     
     def send_error(self, code, message=None, explain=None):
+        """此方法无用, 仅系统调用所需"""
         self.error_code = code
         self.error_message = message
     
@@ -311,6 +321,10 @@ class BareRequest(BaseHTTPRequestHandler):
         return _parse_qsl(self.query_string)
     
     GET = query  # alias
+
+    @property
+    def protocol(self):
+        return self.protocol_version
     
     @property
     def method(self):
@@ -429,6 +443,15 @@ class BareRequest(BaseHTTPRequestHandler):
     
     @property
     def netloc(self):
+        """
+        返回域名和端口, 默认端口自动省略
+        等效于 urlsplit 的 .netloc
+        
+        Examples:
+            "foo.com:8888"
+            "bar.com"
+        
+        """
         return make_netloc(self.real_host, scheme=self.scheme, port=self.port)
     
     @property
@@ -437,7 +460,26 @@ class BareRequest(BaseHTTPRequestHandler):
     
     @property
     def url_no_query(self):
+        """
+        返回不带query的url
+        
+        Examples:
+            "http://foo.com:88/cat.html"
+            "https://foo.com/dog.php"
+        """
         return parse.urlunsplit((self.scheme, self.netloc, self.path, "", ""))
+
+    @property
+    def url_no_path(self):
+        """
+        返回不带path的url
+        
+        Examples:
+            "http://foo.com:88"
+            "https://bar.com"
+
+        """
+        return parse.urlunsplit((self.scheme, self.netloc, "", "", ""))
     
     def to_requests(self):
         """
@@ -466,9 +508,10 @@ class BareRequest(BaseHTTPRequestHandler):
         )
     
     @classmethod
-    def build(cls, old=None, method=None,
+    def build(cls, old=None,  # TODO: 拆分此函数
+              method=None, protocol=None,
               path=None, query=None,
-              body=None, protocol=None,
+              data=None, json=None, files=None,
               headers=None, cookies=None,
               host=None,
               real_host=None, port=None, scheme=None,
@@ -478,7 +521,7 @@ class BareRequest(BaseHTTPRequestHandler):
         组装新的BareRequest
         
         See Also:
-            test_build_modified
+            `test_build_modified`
         
         Args:
             old (BareRequest): 已有的对象
@@ -487,12 +530,13 @@ class BareRequest(BaseHTTPRequestHandler):
         """
         
         _modify_cookies = cookies is not None
+        _modify_url_no_query = any((scheme, host, real_host, port, path))
         url_no_query = None
         
         if old is not None:
             path = path or old.path
             query = query or old.query_string
-            body = body or old.body
+            data = data if any((data, json, files)) else old.body
             headers = headers or old.headers
             cookies = cookies if cookies is not None else old.cookies
             real_host = real_host or old.real_host
@@ -510,8 +554,11 @@ class BareRequest(BaseHTTPRequestHandler):
         real_host = real_host or host
         netloc = make_netloc(real_host, scheme=scheme, port=port)
         headers_copy = copy.deepcopy(headers)
-        url_no_query = url_no_query or parse.urlunsplit((scheme, netloc, path, "", ""))
         line_sep = line_sep if line_sep is not None else b'\r\n'
+        if _modify_url_no_query or not url_no_query:
+            # 发生了修改, 必须重新组装
+            url_no_query = parse.urlunsplit((scheme, netloc, path, "", ""))
+
         
         # 处理cookies
         if _modify_cookies:
@@ -519,16 +566,20 @@ class BareRequest(BaseHTTPRequestHandler):
             #   否则requests会以headers里的cookies覆盖掉手动传入的
             if headers_copy and "Cookie" in headers_copy:
                 del headers_copy["Cookie"]
-        
-        if headers_copy and 'Content-Length' in headers_copy:
-            del headers_copy['Content-Length']
+
+        if headers_copy:
+            # 删除会干扰 PreparedRequest 的头
+            for _hname in ('Content-Length', 'Content-Type'):
+                if _hname in headers_copy:
+                    del headers_copy[_hname]
         
         # ----- 利用requests的工具来构建各种参数 -------
         fake_req = requests.PreparedRequest()
         fake_req.prepare(
             method=method, url=url_no_query,
             headers=headers_copy, params=query,
-            cookies=cookies, data=body,
+            cookies=cookies,
+            data=data, files=files, json=json
         )
         
         req = b''
@@ -558,19 +609,33 @@ class BareRequest(BaseHTTPRequestHandler):
         # -------- 构建headers ---------
         headers_copy = copy.deepcopy(headers)
         if _modify_cookies:
+            # 如果指定了新cookie, 就重建cookie
             headers_copy["Cookie"] = fake_req.headers["Cookie"]
         if fake_req.headers.get("Content-Length"):
             headers_copy["Content-Length"] = fake_req.headers["Content-Length"]
-        
+        if fake_req.headers.get("Transfer-Encoding"):
+            headers_copy["Transfer-Encoding"] = fake_req.headers["Transfer-Encoding"]
+
+        # PreparedRequest 可能会改变Content-Type
+        _new_content_type = fake_req.headers.get("Content-Type")
+        if _new_content_type and _new_content_type not in headers_copy.get("Content-Type"):
+            headers_copy["Content-Type"] = _new_content_type
+
+        # 写host
+        if host and host != headers_copy.get("Host"):
+            headers_copy["Host"] = host
+
+        # 写入headers
         for name, value in headers_copy.items():
             _line = "{}: {}".format(name, value)
             req += _line.encode("UTF-8") + line_sep
         # headers结束
+
         req += line_sep
         
         # -------- 构建body -----------
-        _body = fake_req.body
-        if isinstance(body, six.string_types):
+        _body = fake_req.body  # 读取 PreparedRequest 中的body
+        if isinstance(_body, six.string_types):
             _body = _body.encode("UTF-8")  # TODO: 根据header来检测编码
         req += _body
         
@@ -652,9 +717,7 @@ loginId=abcdef.io&loginId=another-loginId&appName=cat&appEntrance=cat&bizParams=
     return request
 
 
-def test_resend():
-    import requests
-    req = test_decode1()
+def test_resend(req):
     tor = req.to_requests()
     r = requests.request(**tor)
     assert b'<h1>Example Domain</h1>' in r.content
@@ -697,60 +760,87 @@ def test_build_same():
 
 def test_build_modified():
     r = test_decode1()
-    
-    h = r.headers
-    h["Accept"] = "*/*"
-    h["Cat"] = "dog"
+
+    # headers需要复制一份出来才能修改, 其他不用
+    h = copy.deepcopy(r.headers)
+    h["Accept"] = "*/*"  # 修改已有的字段, 字段顺序保持不变, 下同
+    h["Cat"] = "dog"  # 新字段, 会加在最后面, 下同
     
     cookies = r.cookies
-    cookies["foo"] = "bar"
-    cookies["t"] = "changed"
+    cookies["cna"] = "changed"
+    cookies["nonexist"] = "bar"
+
+    data = r.forms
+    data["appName"] = "dog"
+    data["nonexist"] = "bar"
+
+    query = r.query
+    query["appName"] = "abcdefg&"
+    query["nonexist"] = "23333"
+    
     
     new = BareRequest.build(
+        # 以下所有字段都是可有可无的
+        #   为了demo, 所以才全部写上了
         old=r,
+        method="PUT",
+        protocol="HTTP/1.0",
+        path="/yet/another/path",
+        query=query,
+        data=data,  # data的用法和行为和requests等同
+        # json=  # json和files 的用法也和requests一样
         headers=h,
+        host="www.example.org",
         cookies=cookies,
-        port=81,
+        port=443,
         scheme="https",
     )
+
+    logger.debug("new req:\n%s", new.raw.decode("UTF-8"))
     
     _nh_cpy = copy.deepcopy(new.headers)
     _h_cpy = copy.deepcopy(h)
-    del _nh_cpy["Cookie"]
-    del _h_cpy["Cookie"]
+
+    # headers的顺序和值相同
+    assert tuple(x.lower() for x in _nh_cpy.keys()) == tuple(x.lower() for x in _h_cpy.keys())
+    for _hname in ("Cookie", "Content-Length", "Host"):
+        del _nh_cpy[_hname]
+        del _h_cpy[_hname]
     assert tuple(_nh_cpy.values()) == tuple(_h_cpy.values())
-    
-    assert new.port == 81
+
+    assert new.port == 443
     assert new.real_host == "example.com"
+    assert new.host == "www.example.org"
+    assert new.path == "/yet/another/path"
+    assert new.protocol == "HTTP/1.0"
     assert new.scheme == "https"
-    
-    try:
-        assert dict(new.cookies.items()) == dict(cookies.items())
-    except:
-        logger.error(h["Cookie"])
-        logger.error(cookies.items())
-        logger.error(new.headers["Cookie"])
-        logger.error(new.cookies.items())
-        raise
-    
+    assert new.method == "PUT"
+    assert len(new.body) == new.content_length == 94
+    assert tuple(new.forms.items()) == tuple(data.items())
+    assert tuple(new.query.items()) == tuple(query.items())
+    assert dict(new.cookies.items()) == dict(cookies.items())
+
     return new
 
 
 if __name__ == "__main__":
     try:
         import err_hunter
-        
-        err_hunter.colorConfig()
+
+        err_hunter.colorConfig("DEBUG")
         logger = err_hunter.getLogger()
     except:
         import logging
         
         logging.basicConfig(level="DEBUG")
         logger = logging.getLogger(__name__)
+
+    r = test_decode1()
+    test_resend(r)
     
-    test_decode1()
-    test_resend()
     test_build_same()
-    test_build_modified()
+    
+    r = test_build_modified()
+    test_resend(r)
     
     logger.info("all tests passed!")
