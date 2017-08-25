@@ -427,7 +427,7 @@ class BareRequest(BaseHTTPRequestHandler):
     
     @property
     def chunked(self):
-        return 'chunked' in self.headers.get("transfer_encoding", "")
+        return 'chunked' in self.headers.get("Transfer-Encoding", "")
     
     @property
     def is_xhr(self):
@@ -617,8 +617,8 @@ class BareRequest(BaseHTTPRequestHandler):
             headers_copy["Transfer-Encoding"] = fake_req.headers["Transfer-Encoding"]
 
         # PreparedRequest 可能会改变Content-Type
-        _new_content_type = fake_req.headers.get("Content-Type")
-        if _new_content_type and _new_content_type not in headers_copy.get("Content-Type"):
+        _new_content_type = fake_req.headers.get("Content-Type", "")
+        if _new_content_type and _new_content_type not in headers_copy.get("Content-Type", ""):
             headers_copy["Content-Type"] = _new_content_type
 
         # 写host
@@ -635,9 +635,10 @@ class BareRequest(BaseHTTPRequestHandler):
         
         # -------- 构建body -----------
         _body = fake_req.body  # 读取 PreparedRequest 中的body
-        if isinstance(_body, six.string_types):
-            _body = _body.encode("UTF-8")  # TODO: 根据header来检测编码
-        req += _body
+        if _body:
+            if isinstance(_body, six.string_types):
+                _body = _body.encode("UTF-8")  # TODO: 根据header来检测编码
+            req += _body
         
         # -------- 构建新的 BareRequest --------
         new_bare_req = cls(req, real_host=real_host,
@@ -651,7 +652,7 @@ class BareRequest(BaseHTTPRequestHandler):
 # -----------------------  BEGIN TESTS ---------------------------
 # ----------------------------------------------------------------
 
-def test_decode1():
+def test_decode_post():
     request_bin = b'''POST /index.html?fromSite=-2&fromSite=another&appName=cat HTTP/1.1
 Host: www.example.com
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:54.0) Gecko/20100101 Firefox/54.0
@@ -712,26 +713,45 @@ loginId=abcdef.io&loginId=another-loginId&appName=cat&appEntrance=cat&bizParams=
         ('x-requested-with', 'XMLHttpRequest'),
         ('referer', 'http://www.example.com/referer'),
         ('content-length', '81'),
-    ), logger.error(request.headers.items())
+    )
     
     return request
 
 
-def test_resend(req):
-    tor = req.to_requests()
-    r = requests.request(**tor)
-    assert b'<h1>Example Domain</h1>' in r.content
+def test_decode_get():
+    request_bin = b"""GET /get?cat=1&dog=2 HTTP/1.1
+Accept: text/html
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Host: httpbin.org
+User-Agent: HTTPie/0.9.9
+X-Needle: uCX6YrzPpTmax
+
+"""
+    
+    r = BareRequest(request_bin)
+    
+    assert r.raw == request_bin
+    assert r.host == "httpbin.org"
+    assert tuple(r.query.items()) == (("cat", "1"), ("dog", "2"))
+    assert r.user_agent == "HTTPie/0.9.9"
+    
     return r
 
 
-def test_build_same():
+def test_resend(req, pattern=b'<h1>Example Domain</h1>'):
+    tor = req.to_requests()
+    r = requests.request(**tor)
+    assert pattern in r.content
+    return r
+
+
+def test_build_same(r):
     def _decode(v):
         if isinstance(v, six.binary_type):
             return v.decode("UTF-8")
         else:
             return v
-    
-    r = test_decode1()
     
     # --- 测试什么都不变的情况下与原有数据保持相同
     same = BareRequest.build(old=r)
@@ -751,15 +771,19 @@ def test_build_same():
         try:
             assert values["old"] == values["new"], attr
         except:
-            logger.error(values["new"])
-            logger.error(values["old"])
+            logger.error(repr(values["old"]))
+            logger.error(repr(values["new"]))
             raise
     
     return same
 
 
-def test_build_modified():
-    r = test_decode1()
+def test_build_modified(r):
+    """
+
+    Args:
+        r (BareRequest):
+    """
 
     # headers需要复制一份出来才能修改, 其他不用
     h = copy.deepcopy(r.headers)
@@ -798,30 +822,39 @@ def test_build_modified():
 
     logger.debug("new req:\n%s", new.raw.decode("UTF-8"))
     
-    _nh_cpy = copy.deepcopy(new.headers)
-    _h_cpy = copy.deepcopy(h)
-
+    _newh = copy.deepcopy(new.headers)
+    _oldh = copy.deepcopy(h)
+    
+    for _hname in ("Content-Length", "Content-Type", "Cookie"):
+        if _hname not in _oldh:
+            del _newh[_hname]
     # headers的顺序和值相同
-    assert tuple(x.lower() for x in _nh_cpy.keys()) == tuple(x.lower() for x in _h_cpy.keys())
+    assert tuple(x.lower() for x in _newh.keys()) == tuple(x.lower() for x in _oldh.keys())
     for _hname in ("Cookie", "Content-Length", "Host"):
-        del _nh_cpy[_hname]
-        del _h_cpy[_hname]
-    assert tuple(_nh_cpy.values()) == tuple(_h_cpy.values())
+        if _hname in _newh:
+            del _newh[_hname]
+            del _oldh[_hname]
+    assert tuple(_newh.values()) == tuple(_oldh.values())
 
     assert new.port == 443
-    assert new.real_host == "example.com"
+    assert new.real_host == r.real_host
     assert new.host == "www.example.org"
     assert new.path == "/yet/another/path"
     assert new.protocol == "HTTP/1.0"
     assert new.scheme == "https"
     assert new.method == "PUT"
-    assert len(new.body) == new.content_length == 94
+    assert len(new.body) == new.content_length
     assert tuple(new.forms.items()) == tuple(data.items())
     assert tuple(new.query.items()) == tuple(query.items())
     assert dict(new.cookies.items()) == dict(cookies.items())
 
     return new
 
+
+def test_build_modified2():
+    r = test_decode_get()
+    
+    
 
 if __name__ == "__main__":
     try:
@@ -835,12 +868,16 @@ if __name__ == "__main__":
         logging.basicConfig(level="DEBUG")
         logger = logging.getLogger(__name__)
 
-    r = test_decode1()
+    r = test_decode_post()
     test_resend(r)
-    
-    test_build_same()
-    
-    r = test_build_modified()
-    test_resend(r)
+    test_build_same(r)
+
+    rm = test_build_modified(r)
+    test_resend(rm)
+
+    r = test_decode_get()
+    test_resend(r, b"uCX6YrzPpTmax")
+    test_build_same(r)
+    test_build_modified(r)
     
     logger.info("all tests passed!")
