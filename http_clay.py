@@ -1,5 +1,8 @@
 # coding=utf-8
 """
+对原始HTTP请求的修改、编解码、转换
+
+
 Requirements:
     future
     six
@@ -221,12 +224,12 @@ class HTTPHeaders(OrderedMultiDict):
     def __contains__(self, key):
         key = self._find_real_key(key)
         return super(HTTPHeaders, self).__contains__(key)
-
+    
     def update(self, other):  # TODO: 改成更加高性能的封装
         if hasattr(other, "items"):
             for k, v in other.items():
                 self[k] = v
-    
+        
         else:
             for k, v in other:
                 self[k] = v
@@ -321,7 +324,7 @@ class BareRequest(BaseHTTPRequestHandler):
         return _parse_qsl(self.query_string)
     
     GET = query  # alias
-
+    
     @property
     def protocol(self):
         return self.request_version
@@ -383,19 +386,23 @@ class BareRequest(BaseHTTPRequestHandler):
         )
         data = fs.list or []
         post = OrderedMultiDict()
-        for item in data:
+        for item in data:  # type: cgi.FieldStorage
             if item.filename:
-                post[item.name] = FileUpload(item.file, item.name,
-                                             item.filename, item.headers)
+                post[item.name] = item
             else:
                 post[item.name] = item.value
         return post
     
     @property
     def files(self):
+        """
+        
+        Returns:
+            dict[str, cgi.FieldStorage] | OrderedMultiDict: 文件
+        """
         files = OrderedMultiDict()
         for name, item in self.POST.items():
-            if isinstance(item, FileUpload):
+            if isinstance(item, cgi.FieldStorage):
                 files[name] = item
         return files
     
@@ -468,7 +475,7 @@ class BareRequest(BaseHTTPRequestHandler):
             "https://foo.com/dog.php"
         """
         return parse.urlunsplit((self.scheme, self.netloc, self.path, "", ""))
-
+    
     @property
     def url_no_path(self):
         """
@@ -558,7 +565,6 @@ class BareRequest(BaseHTTPRequestHandler):
         if _modify_url_no_query or not url_no_query:
             # 发生了修改, 必须重新组装
             url_no_query = parse.urlunsplit((scheme, netloc, path, "", ""))
-
         
         # 处理cookies
         if _modify_cookies:
@@ -566,7 +572,7 @@ class BareRequest(BaseHTTPRequestHandler):
             #   否则requests会以headers里的cookies覆盖掉手动传入的
             if headers_copy and "Cookie" in headers_copy:
                 del headers_copy["Cookie"]
-
+        
         if headers_copy:
             # 删除会干扰 PreparedRequest 的头
             for _hname in ('Content-Length', 'Content-Type'):
@@ -615,22 +621,22 @@ class BareRequest(BaseHTTPRequestHandler):
             headers_copy["Content-Length"] = fake_req.headers["Content-Length"]
         if fake_req.headers.get("Transfer-Encoding"):
             headers_copy["Transfer-Encoding"] = fake_req.headers["Transfer-Encoding"]
-
+        
         # PreparedRequest 可能会改变Content-Type
         _new_content_type = fake_req.headers.get("Content-Type", "")
         if _new_content_type and _new_content_type not in headers_copy.get("Content-Type", ""):
             headers_copy["Content-Type"] = _new_content_type
-
+        
         # 写host
         if host and host != headers_copy.get("Host"):
             headers_copy["Host"] = host
-
+        
         # 写入headers
         for name, value in headers_copy.items():
             _line = "{}: {}".format(name, value)
             req += _line.encode("UTF-8") + line_sep
         # headers结束
-
+        
         req += line_sep
         
         # -------- 构建body -----------
@@ -739,6 +745,47 @@ X-Needle: uCX6YrzPpTmax
     return r
 
 
+def test_decode_multipart():
+    request_bin = b"""POST /post?cat=1&dog=2 HTTP/1.1
+Host: httpbin.org
+Content-Length: 296
+User-Agent: http_clay/1.0
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryEW35oPYWK6qwibcP
+Accept: text/html
+Accept-Language: zh-CN,zh;q=0.8
+Cookie: JSESSIONID=A53DAC634D455E4D1F16829B7BD480F7
+Connection: close
+
+------WebKitFormBoundaryEW35oPYWK6qwibcP
+Content-Disposition: form-data; name="upload"; filename="abc.txt"
+Content-Type: text/plain
+
+afasfafasfasfa
+------WebKitFormBoundaryEW35oPYWK6qwibcP
+Content-Disposition: form-data; name="caption"
+
+aaaaa
+------WebKitFormBoundaryEW35oPYWK6qwibcP--"""
+    r = BareRequest(request_bin, real_host="httpbin.org")
+    
+    assert len(r.POST) == 2
+    assert len(r.files) == 1
+    
+    f = r.files["upload"]
+    assert isinstance(f, cgi.FieldStorage)
+    assert r.POST["upload"].file.getvalue() == f.file.getvalue()
+    assert f.file.getvalue() == b'afasfafasfasfa'
+    assert f.outerboundary == b"----WebKitFormBoundaryEW35oPYWK6qwibcP"
+    assert f.disposition == "form-data"
+    assert f.name == "upload"
+    assert f.filename == "abc.txt"
+    assert f.type == "text/plain"
+    
+    assert r.POST["caption"] == "aaaaa"
+    
+    return r
+
+
 def test_resend(req, pattern=b'<h1>Example Domain</h1>'):
     tor = req.to_requests()
     r = requests.request(**tor)
@@ -784,7 +831,7 @@ def test_build_modified(r):
     Args:
         r (BareRequest):
     """
-
+    
     # headers需要复制一份出来才能修改, 其他不用
     h = copy.deepcopy(r.headers)
     h["Accept"] = "*/*"  # 修改已有的字段, 字段顺序保持不变, 下同
@@ -793,15 +840,14 @@ def test_build_modified(r):
     cookies = r.cookies
     cookies["cna"] = "changed"
     cookies["nonexist"] = "bar"
-
+    
     data = r.forms
     data["appName"] = "dog"
     data["nonexist"] = "bar"
-
+    
     query = r.query
     query["appName"] = "abcdefg&"
     query["nonexist"] = "23333"
-    
     
     new = BareRequest.build(
         # 以下所有字段都是可有可无的
@@ -819,7 +865,7 @@ def test_build_modified(r):
         port=443,
         scheme="https",
     )
-
+    
     logger.debug("new req:\n%s", new.raw.decode("UTF-8"))
     
     _newh = copy.deepcopy(new.headers)
@@ -835,7 +881,7 @@ def test_build_modified(r):
             del _newh[_hname]
             del _oldh[_hname]
     assert tuple(_newh.values()) == tuple(_oldh.values())
-
+    
     assert new.port == 443
     assert new.real_host == r.real_host
     assert new.host == "www.example.org"
@@ -847,19 +893,18 @@ def test_build_modified(r):
     assert tuple(new.forms.items()) == tuple(data.items())
     assert tuple(new.query.items()) == tuple(query.items())
     assert dict(new.cookies.items()) == dict(cookies.items())
-
+    
     return new
 
 
 def test_build_modified2():
     r = test_decode_get()
-    
-    
+
 
 if __name__ == "__main__":
     try:
         import err_hunter
-
+        
         err_hunter.colorConfig("DEBUG")
         logger = err_hunter.getLogger()
     except:
@@ -867,17 +912,20 @@ if __name__ == "__main__":
         
         logging.basicConfig(level="DEBUG")
         logger = logging.getLogger(__name__)
-
+    
     r = test_decode_post()
     test_resend(r)
     test_build_same(r)
-
+    
     rm = test_build_modified(r)
     test_resend(rm)
-
+    
     r = test_decode_get()
     test_resend(r, b"uCX6YrzPpTmax")
     test_build_same(r)
     test_build_modified(r)
+    
+    r = test_decode_multipart()
+    test_resend(r, b'"upload": "afasfafasfasfa"')
     
     logger.info("all tests passed!")
