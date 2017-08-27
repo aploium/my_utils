@@ -9,6 +9,7 @@ Requirements:
     requests
     bottle
     orderedmultidict
+    err-hunter
 
 Compatible Interpreters:
     CPython 3.4/3.5/3.6+
@@ -60,6 +61,8 @@ except ImportError:
         pass
 
 REGEX_CHARSET = re.compile(r"charset=([\w-]+)", re.IGNORECASE)
+
+__version__ = (0, 5, 0)
 
 
 def extract_charset(content_type):
