@@ -109,6 +109,14 @@ def unicode_decode(content):
     raise UnicodeError("unable to decode {}".format(repr(content[:32])))
 
 
+def ensure_unicode(content):
+    if isinstance(content, six.text_type):
+        return content
+    else:
+        _, uni = unicode_decode(content)
+        return uni
+
+
 def _parse_qsl(qsl):
     pairs = parse.parse_qsl(qsl)
     dic = OrderedMultiDict(pairs)
@@ -154,10 +162,6 @@ def make_netloc(host, scheme="http", port=None):
         return host
     else:
         return "{}:{}".format(host, port)
-
-
-def convert_headers(old, request_bin):
-    pass
 
 
 class OrderedMultiDict(omdict):
@@ -246,7 +250,8 @@ class BareRequest(BaseHTTPRequestHandler):
         # 转换headers
         self.headers = self._load_ordered_headers()
         
-        self._path = self.path
+        self._path = ensure_unicode(self.path)
+        self.command = ensure_unicode(self.command)
         
         if self.raw_requestline.endswith(b"\r\n"):
             self.line_sep = b'\r\n'
@@ -254,12 +259,6 @@ class BareRequest(BaseHTTPRequestHandler):
             self.line_sep = b'\r'
         else:
             self.line_sep = b'\n'
-        
-        if six.PY2:
-            self._path = self._path.decode("UTF-8")
-            # if not _future_standard_library_load_success:
-            #     for key in tuple(self.headers.keys()):
-            #         self.headers[key] = self.headers[key].decode("UTF-8")
         
         sp = parse.urlsplit(self._path)
         self.path = sp.path
@@ -296,7 +295,7 @@ class BareRequest(BaseHTTPRequestHandler):
                 
                 return 99999999  # 没找到
             
-            headers = list(self.headers.items())
+            headers = [(ensure_unicode(k), ensure_unicode(v)) for k, v in self.headers.items()]
             
             # 按原来的顺序排序
             headers.sort(key=_header_pos)
@@ -505,14 +504,14 @@ class BareRequest(BaseHTTPRequestHandler):
             del _headers["Cookie"]
         if "Content-Length" in _headers:
             del _headers["Content-Length"]
-        return dict(
-            method=self.method,
-            url=self.url_no_query,
-            params=self.query,
-            data=self.body,
-            headers=_headers,
-            cookies=self.cookies,
-        )
+        return {
+            "method": self.method,
+            "url": self.url_no_query,
+            "params": self.query,
+            "data": self.body,
+            "headers": _headers,
+            "cookies": self.cookies,
+        }
     
     @classmethod
     def build(cls, old=None,  # TODO: 拆分此函数
