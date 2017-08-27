@@ -7,7 +7,6 @@ Requirements:
     future
     six
     requests
-    bottle
     orderedmultidict
     err-hunter
 
@@ -46,10 +45,8 @@ import re
 import json
 import cgi
 import copy
-from collections import OrderedDict, Mapping
 
 import requests
-from bottle import MultiDict, FileUpload
 from orderedmultidict.orderedmultidict import omdict
 
 try:
