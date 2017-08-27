@@ -59,7 +59,7 @@ except ImportError:
 
 REGEX_CHARSET = re.compile(r"charset=([\w-]+)", re.IGNORECASE)
 
-__version__ = (0, 5, 0)
+__version__ = (0, 5, 1)
 
 
 def extract_charset(content_type):
@@ -110,6 +110,8 @@ def unicode_decode(content):
 
 
 def ensure_unicode(content):
+    if content is None:
+        return content
     if isinstance(content, six.text_type):
         return content
     else:
@@ -521,7 +523,7 @@ class BareRequest(BaseHTTPRequestHandler):
         return session.request(**req)
     
     @classmethod
-    def build(cls, old=None,  # TODO: 拆分此函数
+    def build(cls, old=None, old_bin=None,  # TODO: 拆分此函数
               method=None, protocol=None,
               path=None, query=None,
               data=None, json=None, files=None,
@@ -546,6 +548,12 @@ class BareRequest(BaseHTTPRequestHandler):
         _modify_url_no_query = any((scheme, host, real_host, port, path))
         url_no_query = None
         
+        if old and old_bin:
+            raise ValueError("old and old_bin should not be specified both")
+        
+        if old_bin is not None:
+            old = cls(old_bin)
+        
         if old is not None:
             path = path or old.path
             query = query or old.query_string
@@ -562,9 +570,9 @@ class BareRequest(BaseHTTPRequestHandler):
             url_no_query = old.url_no_query
         
         # 处理默认值
-        scheme = scheme if scheme is not None else "http"
-        path = path if path is not None else "/"
-        real_host = real_host or host
+        scheme = ensure_unicode(scheme if scheme is not None else "http")
+        path = ensure_unicode(path if path is not None else "/")
+        real_host = ensure_unicode(real_host or host)
         netloc = make_netloc(real_host, scheme=scheme, port=port)
         headers_copy = copy.deepcopy(headers)
         line_sep = line_sep if line_sep is not None else b'\r\n'
