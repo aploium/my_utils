@@ -513,6 +513,13 @@ class BareRequest(BaseHTTPRequestHandler):
             "cookies": self.cookies,
         }
     
+    def send(self, session=None, verify=False, **kwargs):
+        session = session or requests.Session()
+        req = self.to_requests()
+        req["verify"] = verify
+        req.update(kwargs)
+        return session.request(**req)
+    
     @classmethod
     def build(cls, old=None,  # TODO: 拆分此函数
               method=None, protocol=None,
@@ -894,10 +901,6 @@ def test_build_modified(r):
     assert dict(new.cookies.items()) == dict(cookies.items())
     
     return new
-
-
-def test_build_modified2():
-    r = test_decode_get()
 
 
 if __name__ == "__main__":
