@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import re
 import sys
 import operator
+from distutils.version import Version as BaseVersion
 from distutils.version import LooseVersion as Version
 
 PY3 = sys.version_info[0] == 3
@@ -45,7 +46,7 @@ class VersionCond(object):
         self.op = op
     
     def match(self, version):
-        if not version:
+        if not version or not isinstance(version, (string_types, BaseVersion)):
             return False
         version = to_version(version)
         return self.op(version, self.version)
@@ -170,6 +171,9 @@ def test__version_range():
     assert vr.match("1.9.*")
     assert vr.match("1.4z") is False
     assert vr.match("2016") is False
+    assert vr.match(None) is False
+    assert vr.match(1.11) is False
+    assert vr.match(object()) is False
     
     vr = VersionRange(">=2016, <2017")
     assert vr.match("2016春节版")
