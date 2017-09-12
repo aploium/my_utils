@@ -81,6 +81,10 @@ _loglevel = logging.DEBUG
 _logfile = None
 _formatter = None
 
+VERBOSE = 15
+TRACE = 8
+NOISE = 6
+LOWEST = 1
 
 def setup_logger(name=None, logfile=None, level=logging.DEBUG, formatter=None, maxBytes=0, backupCount=0, fileLoglevel=None):
     """
@@ -155,10 +159,15 @@ class LogFormatter(logging.Formatter):
     DEFAULT_FORMAT = '%(color)s[%(levelname)1.1s %(asctime)s %(module)s:%(lineno)d]%(end_color)s %(message)s'
     DEFAULT_DATE_FORMAT = '%y%m%d %H:%M:%S'
     DEFAULT_COLORS = {
+        LOWEST: ForegroundColors.MAGENTA,
+        NOISE: ForegroundColors.LIGHTBLACK_EX,
+        TRACE: ForegroundColors.LIGHTCYAN_EX,
         logging.DEBUG: ForegroundColors.CYAN,
+        VERBOSE: ForegroundColors.LIGHTGREEN_EX,
         logging.INFO: ForegroundColors.GREEN,
         logging.WARNING: ForegroundColors.YELLOW,
-        logging.ERROR: ForegroundColors.RED
+        logging.ERROR: ForegroundColors.RED,
+        logging.CRITICAL: ForegroundColors.LIGHTMAGENTA_EX,
     }
 
     def __init__(self,

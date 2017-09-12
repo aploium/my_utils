@@ -9,9 +9,12 @@ from logging import (
 
 from .traceback2 import format_exc, print_exc
 from .mylogger import MyHTTPHandler, apply_handler
-from .mylogging import basicConfig, colorConfig, getLogger
+from .mylogging import (
+    basicConfig, colorConfig, getLogger,
+    VERBOSE, TRACE, NOISE, LOWEST,
+)
 
-VERSION = (0, 5, 4, 0)
+VERSION = (0, 6, 0, 0)
 VERSION_STR = "{}.{}.{}.{}".format(*VERSION)
 
 __version__ = VERSION
