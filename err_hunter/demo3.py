@@ -2,7 +2,7 @@
 # coding=utf-8
 import err_hunter
 
-err_hunter.colorConfig("LOWEST")
+err_hunter.colorConfig("NOISE")
 
 log = err_hunter.getLogger()
 

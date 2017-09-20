@@ -30,7 +30,6 @@ setup(
     platforms="any",
     zip_safe=False,
     classifiers=[
-        'Development Status :: 3 - Alpha',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',

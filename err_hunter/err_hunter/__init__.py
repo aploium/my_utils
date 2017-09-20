@@ -14,7 +14,7 @@ from .mylogging import (
     VERBOSE, TRACE, NOISE, LOWEST,
 )
 
-VERSION = (0, 6, 0, 0)
+VERSION = (0, 6, 1, 0)
 VERSION_STR = "{}.{}.{}.{}".format(*VERSION)
 
 __version__ = VERSION

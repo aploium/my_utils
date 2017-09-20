@@ -30,15 +30,15 @@ def _install_custom_levels():
     logging.addLevelName(LOWEST, "LOWEST")
 
 
-def basicConfig(level=logging.INFO, color=False):
+def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None):
     _install_custom_levels()
     
     logging._acquireLock()
     try:
         if len(logging.root.handlers) != 0:
             return
-        handler = logging.StreamHandler()
-        formatter = logzero.LogFormatter(color=color)
+        handler = handler or logging.StreamHandler()
+        formatter = formatter or logzero.LogFormatter(color=color)
         handler.setFormatter(formatter)
         logging.root.addHandler(handler)
         if level is not None:
@@ -47,8 +47,8 @@ def basicConfig(level=logging.INFO, color=False):
         logging._releaseLock()
 
 
-def colorConfig(level=logging.INFO):
-    basicConfig(level=level, color=True)
+def colorConfig(level=logging.INFO, handler=None, formatter=None):
+    basicConfig(level=level, color=True, handler=handler, formatter=formatter)
 
 
 def _get_outframe_main(frame):
@@ -66,7 +66,7 @@ def getLogzeroLogger(name=None, logfile=None, level=logging.NOTSET,
     )
 
 
-class MoreLevelLogger(logging.Logger):
+class EnhancedLogger(logging.Logger):
     def verbose(self, msg, *args, **kwargs):
         """高于 DEBUG, 低于 INFO 的级别"""
         if self.isEnabledFor(VERBOSE):
@@ -95,18 +95,18 @@ def getLogger(name=None):
         name (str|int): 若不指定则会自动获取
 
     Returns:
-        MoreLevelLogger: 比标准logger多了一些级别
+        EnhancedLogger: 比标准logger多了一些级别
         
-    :rtype: MoreLevelLogger
+    :rtype: EnhancedLogger
     """
     name = name or _get_outframe_main(inspect.currentframe())
     
     _old_cls = logging.Logger.manager.loggerClass
     try:
-        logging.Logger.manager.loggerClass = MoreLevelLogger
+        logging.Logger.manager.loggerClass = EnhancedLogger
         
-        logger = logging.getLogger(name)  # type: MoreLevelLogger
+        logger = logging.getLogger(name)  # type: EnhancedLogger
     finally:
         logging.Logger.manager.loggerClass = _old_cls
     
-    return logger  # type: MoreLevelLogger
+    return logger  # type: EnhancedLogger
