@@ -1,0 +1,7 @@
+err-hunter
+future
+six
+orderedmultidict
+tldextract
+chardet
+requests
