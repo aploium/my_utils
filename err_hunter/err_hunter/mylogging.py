@@ -2,6 +2,7 @@
 # coding=utf-8
 from __future__ import absolute_import, unicode_literals
 import logging
+import logging.handlers
 from .third_party import logzero
 import inspect
 
@@ -17,6 +18,8 @@ TRACE = 8
 NOISE = 6
 LOWEST = 1
 
+FILE_LOG_FORMAT = "%(asctime)s - %(filename)s:%(lineno)s - %(levelno)s %(levelname)s %(pathname)s %(module)s %(funcName)s %(created)f %(thread)d %(threadName)s %(process)d %(name)s - %(message)s"
+
 _level_installed = False
 
 
@@ -30,7 +33,20 @@ def _install_custom_levels():
     logging.addLevelName(LOWEST, "LOWEST")
 
 
-def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None):
+def _lower_level(*levels):
+    lowest = 0
+    for level in levels:
+        if not isinstance(level, int):
+            level = logging.getLevelName(level)
+        if level < lowest:
+            lowest = level
+    return lowest
+
+
+def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None,
+                logfile=None, file_level=None, maxBytes=0, backupCount=0,
+                file_format=FILE_LOG_FORMAT,
+                ):
     _install_custom_levels()
     
     logging._acquireLock()
@@ -41,14 +57,27 @@ def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None):
         formatter = formatter or logzero.LogFormatter(color=color)
         handler.setFormatter(formatter)
         logging.root.addHandler(handler)
-        if level is not None:
+        
+        if logfile:
+            file_handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=maxBytes, backupCount=backupCount)
+            file_formatter = logging.Formatter(file_format)
+            file_handler.setFormatter(file_formatter)
+            logging.root.addHandler(file_handler)
+            
+            if file_level is not None:
+                file_handler.setLevel(file_level)
+                _root_level = _lower_level(level, file_level)
+                logging.root.setLevel(_root_level)
+        
+        if file_level is None:
             logging.root.setLevel(level)
+    
     finally:
         logging._releaseLock()
 
 
-def colorConfig(level=logging.INFO, handler=None, formatter=None):
-    basicConfig(level=level, color=True, handler=handler, formatter=formatter)
+def colorConfig(level=logging.INFO, handler=None, formatter=None, **kwargs):
+    basicConfig(level=level, color=True, handler=handler, formatter=formatter, **kwargs)
 
 
 def _get_outframe_main(frame):
