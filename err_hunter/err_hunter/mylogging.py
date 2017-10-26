@@ -4,6 +4,7 @@ from __future__ import absolute_import, unicode_literals
 import logging
 import logging.handlers
 from .third_party import logzero
+from .mylogger import MultiprocessRotatingFileHandler
 import inspect
 
 # 更多logging的level
@@ -45,7 +46,7 @@ def _lower_level(*levels):
 
 def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None,
                 logfile=None, file_level=None, maxBytes=0, backupCount=0,
-                file_format=FILE_LOG_FORMAT,
+                file_format=FILE_LOG_FORMAT, multi_process=False,
                 ):
     _install_custom_levels()
     
@@ -59,7 +60,11 @@ def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None,
         logging.root.addHandler(handler)
         
         if logfile:
-            file_handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=maxBytes, backupCount=backupCount)
+            if multi_process:
+                file_handler_class = MultiprocessRotatingFileHandler
+            else:
+                file_handler_class = logging.handlers.RotatingFileHandler
+            file_handler = file_handler_class(logfile, maxBytes=maxBytes, backupCount=backupCount)
             file_formatter = logging.Formatter(file_format)
             file_handler.setFormatter(file_formatter)
             logging.root.addHandler(file_handler)
@@ -67,6 +72,7 @@ def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None,
             if file_level is not None:
                 file_handler.setLevel(file_level)
                 _root_level = _lower_level(level, file_level)
+                handler.setLevel(level)
                 logging.root.setLevel(_root_level)
         
         if file_level is None:

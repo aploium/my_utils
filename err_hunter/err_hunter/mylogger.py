@@ -10,6 +10,7 @@ import os
 import platform
 import sys
 import traceback
+import multiprocessing
 
 import requests
 
@@ -17,6 +18,27 @@ from . import frame_operations
 from . import traceback2
 
 FORMAT = "[%(levelname)1.1s %(asctime)s %(module)s.%(funcName)s#%(lineno)d] %(message)s"
+
+
+class MultiprocessRotatingFileHandler(logging.handlers.RotatingFileHandler):
+    def __init__(self, *args, **kwargs):
+        self._baseFilename = None
+        super(MultiprocessRotatingFileHandler, self).__init__(*args, **kwargs)
+    
+    def format(self, record):
+        result = super(MultiprocessRotatingFileHandler, self).format(record)
+        result = result.replace("\r", r"\r").replace("\n", r"\n")
+        return result
+    
+    @property
+    def baseFilename(self):
+        basepath, ext = os.path.splitext(self._baseFilename)
+        cur_process = multiprocessing.current_process()
+        return "{}.{}-{}{}".format(basepath, cur_process.name, cur_process.pid, ext)
+    
+    @baseFilename.setter
+    def baseFilename(self, value):
+        self._baseFilename = value
 
 
 class MyHTTPHandler(logging.Handler):
