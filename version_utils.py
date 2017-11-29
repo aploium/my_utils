@@ -1,9 +1,15 @@
-#!/usr/bin/env python3
 # coding=utf-8
 """
 用于版本字符串的转换、比较、范围匹配
 
 用法请看 `test__version_range` 这个函数
+
+依赖：
+    future
+    distutils
+
+@aploium
+MIT License
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 from future.builtins import *
@@ -11,15 +17,7 @@ from future import utils as six
 import re
 import sys
 import operator
-from distutils.version import Version as _BaseVersion
-from distutils.version import LooseVersion
-
-PY3 = sys.version_info[0] == 3
-if PY3:
-    string_types = str
-else:
-    # noinspection PyUnresolvedReferences
-    string_types = (unicode, str, basestring)
+from distutils.version import LooseVersion as _LooseVersion
 
 RE_SPLIT_COMPARISON = re.compile(r"^\s*(<=|>=|<|>|!=|==)\s*([^\s,]+)\s*$")
 RE_REMOVE_BLANK = re.compile(r"\s*")
@@ -29,7 +27,7 @@ COMPMAP_REVERSE = {v: k for k, v in COMPMAP.items()}
 
 
 def to_version(version):
-    if isinstance(version, string_types):
+    if isinstance(version, six.string_types):
         return Version(remove_blank(version))
     else:
         return version
@@ -40,10 +38,11 @@ def remove_blank(txt):
     return RE_REMOVE_BLANK.sub("", txt)
 
 
-class Version(LooseVersion):
+class Version(_LooseVersion):
     pass
 
 
+@six.python_2_unicode_compatible
 class VersionCond(object):
     """
 
@@ -54,14 +53,14 @@ class VersionCond(object):
     def __init__(self, op, version):
         self.version = to_version(version)
 
-        if isinstance(op, string_types):
+        if isinstance(op, six.string_types):
             op = COMPMAP[op]
         self.op = op
 
     def match(self, version):
         if self.version.vstring == 'all':
             return True
-        if not version or not isinstance(version, (string_types, Version)):
+        if not version or not isinstance(version, (six.string_types, Version)):
             return False
         version = to_version(version)
         return self.op(version, self.version)
@@ -91,9 +90,10 @@ class VersionCond(object):
         return self.to_str()
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, self.to_str())
+        return "{}({})".format(self.__class__.__name__, repr(self.to_str()))
 
 
+@six.python_2_unicode_compatible
 class CondGroup(object):
     """
 
@@ -101,7 +101,9 @@ class CondGroup(object):
     """
 
     def __init__(self, conds):
-        if isinstance(conds, VersionCond):
+        if isinstance(conds, CondGroup):
+            self.conds = conds.conds
+        elif isinstance(conds, VersionCond):
             self.conds = [conds]
         elif isinstance(conds, six.string_types):
             self.conds = [VersionCond.from_str(x) for x in conds.split(',')]
@@ -126,10 +128,14 @@ class CondGroup(object):
     def __str__(self):
         return self.to_str()
 
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, repr(self.to_str()))
 
+
+@six.python_2_unicode_compatible
 class VersionRange(object):
     def __init__(self, ranges):
-        if isinstance(ranges, string_types):
+        if isinstance(ranges, six.string_types):
             self.ranges = [CondGroup(x) for x in ranges.split('|')]
         elif isinstance(ranges, (list, tuple)):
             self.ranges = [CondGroup(x) for x in ranges]
@@ -154,8 +160,91 @@ class VersionRange(object):
         return self.to_str()
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, self.to_str())
+        return "{}({})".format(self.__class__.__name__, repr(self.to_str()))
 
+    def __eq__(self, other):
+        if isinstance(other, VersionRange):
+            return self.to_str() == other.to_str()
+        elif isinstance(other, six.string_types):
+            return self.to_str() == other
+        else:
+            return False
+
+
+def _internal_guess_range(versions):
+    """
+    供下面 guess_range_from_versions() 内部调用，只会分成一段
+
+    Args:
+        versions (list[Version])
+    """
+    lowest = highest = versions[0]
+    for version in versions[1:]:
+        if version < lowest:
+            lowest = version
+        elif version > highest:
+            highest = version
+
+    return lowest, highest
+
+
+def guess_range(versions, digits=2):
+    """
+    根据一系列离散的版本猜测版本范围
+    会把 group_digits 位的版本分为同一段
+
+    Examples：
+        (digits=1) "1.1|1.2|1.3|1.4" --> ">=1.1,<=1.4"
+        (digits=1) "1.1|1.2|1.3|1.4|2.1|2.2|2.3" --> ">=1.1,<=1.4|>=2.1,<=2.3"
+
+        '1.1.1|1.1.2|1.1.3|1.2|1.2.4|2.0|2.0.2|3.0'
+         --> '>=1.1.1,<=1.1.3|>=1.2,<=1.2.4|>=2.0,<=2.0.2|3.0'
+
+
+    Args:
+        versions (list[str]|str): 一系列离散的版本号
+        digits (int): 将最高几位作为一组
+
+    Returns:
+        VersionRange
+    """
+    if isinstance(versions, six.string_types):
+        versions = [Version(x) for x in versions.split('|')]
+    else:
+        versions = [Version(x) for x in versions]
+
+    versions.sort()
+
+    if not versions:
+        raise ValueError('must given at least one version')
+
+    sections = []
+    group_buff = [versions[0]]
+
+    for version in versions[1:]:
+        if version.version[:digits] == group_buff[0].version[:digits]:
+            group_buff.append(version)
+        else:
+            sections.append(_internal_guess_range(group_buff))
+            group_buff = [version]
+    # 最后一组
+    sections.append(_internal_guess_range(group_buff))
+
+    version_ranges = []
+    for low, high in sections:
+        if low == high:
+            cg = low.vstring
+        else:
+            cg = ">={},<={}".format(low, high)
+        version_ranges.append(cg)
+
+    vr = VersionRange(version_ranges)
+
+    return vr
+
+# -----------------------------------------------------
+# ------------------- BEGIN   TESTS -------------------
+# -----------------------------------------------------
 
 def test_version_cond():
     for cond in (
@@ -251,10 +340,37 @@ def test_version_range():
     assert vr.to_str() == '>=1.4,<=1.4.1|1.4.2|1.4.3|>=1.5,<1.5.3|1.6'
     vr = VersionRange('>=1.4 , <= 1.4.1 | 1.4.2 | >= 1.5 , < 1.5.3 | 1.6 ')  # space
     assert vr.to_str() == '>=1.4,<=1.4.1|1.4.2|>=1.5,<1.5.3|1.6'
+    assert vr == '>=1.4,<=1.4.1|1.4.2|>=1.5,<1.5.3|1.6'
+    assert vr == VersionRange('>=1.4,<=1.4.1|1.4.2|>=1.5,<1.5.3|1.6')
+
+
+def test_range_guess():
+    vr = guess_range("1.1|1.2|1.3|1.4", digits=1)
+    assert vr == '>=1.1,<=1.4'
+
+    vr = guess_range("1.1|1.2|1.3|1.4|2.1|2.2|2.3", digits=1)
+    assert vr == '>=1.1,<=1.4|>=2.1,<=2.3'
+
+    vr = guess_range('1.1.1|1.1.2|1.1.3|1.2|1.2.4|2.0|2.0.2|3.0')
+    assert vr == '>=1.1.1,<=1.1.3|>=1.2,<=1.2.4|>=2.0,<=2.0.2|3.0'
+
+    vr = guess_range('1.1')
+    assert vr == '1.1'
+
+    vr = guess_range('1.1|2.0|3.0')
+    assert vr == '1.1|2.0|3.0'
+
+    vr = guess_range('1.1.1|1.1.2|1.1.3|1.2|1.2.4|2.0|2.0.2|3.0'.split("|"))
+    assert vr == '>=1.1.1,<=1.1.3|>=1.2,<=1.2.4|>=2.0,<=2.0.2|3.0'
+
+    # 允许乱序
+    vr = guess_range(['2.0.2', '1.1.2', '1.2.4', '1.1.3', '1.2', '3.0', '1.1.1', '2.0'])
+    assert vr == '>=1.1.1,<=1.1.3|>=1.2,<=1.2.4|>=2.0,<=2.0.2|3.0'
 
 
 if __name__ == "__main__":
     test_version_cond()
     test_version_range()
+    test_range_guess()
 
     print("all tests passed!")
