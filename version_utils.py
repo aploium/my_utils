@@ -39,7 +39,26 @@ def remove_blank(txt):
 
 
 class Version(_LooseVersion):
-    pass
+    def _cmp(self, other):
+        if isinstance(other, str):
+            other = Version(other)
+        try:
+            if self.version == other.version:
+                return 0
+            if self.version < other.version:
+                return -1
+            if self.version > other.version:
+                return 1
+        except TypeError:
+            # issues #2
+            #   没有可靠的办法比较字符串版本号和数字版本号的大小,
+            #   但是为了避免抛出意外的错误, fallback到简陋的字符串比较
+            if self.vstring == other.vstring:
+                return 0
+            if self.vstring < other.vstring:
+                return -1
+            if self.vstring > other.vstring:
+                return 1
 
 
 @six.python_2_unicode_compatible
@@ -246,6 +265,13 @@ def guess_range(versions, digits=2):
 # ------------------- BEGIN   TESTS -------------------
 # -----------------------------------------------------
 
+def test_version():
+    v1 = Version('1.4.9.1')
+    v2 = Version('1.4.9a1')
+    # 这种比较是不靠谱的, 但是没有可靠的方法
+    #   see issues#2
+    assert v2 > v1
+
 def test_version_cond():
     for cond in (
             VersionCond(">", "1.5"),
@@ -369,6 +395,7 @@ def test_range_guess():
 
 
 if __name__ == "__main__":
+    test_version()
     test_version_cond()
     test_version_range()
     test_range_guess()
