@@ -7,6 +7,8 @@ from logging import (
     WARN, INFO, DEBUG, NOTSET,
 )
 
+logger_global_custom_data = {}
+
 from .traceback2 import format_exc, print_exc
 from .mylogger import MyHTTPHandler, apply_handler, MultiprocessRotatingFileHandler
 from .mylogging import (
@@ -14,7 +16,7 @@ from .mylogging import (
     VERBOSE, TRACE, NOISE, LOWEST,
 )
 
-VERSION = (0, 7, 2, 2)
+VERSION = (0, 7, 3, 0)
 VERSION_STR = "{}.{}.{}.{}".format(*VERSION)
 
 __version__ = VERSION
