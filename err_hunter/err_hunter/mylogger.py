@@ -21,13 +21,15 @@ FORMAT = "[%(levelname)1.1s %(asctime)s %(module)s.%(funcName)s#%(lineno)d] %(me
 
 
 class MultiprocessRotatingFileHandler(logging.handlers.RotatingFileHandler):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, ensure_single_line=True, **kwargs):
         self._baseFilename = None
         super(MultiprocessRotatingFileHandler, self).__init__(*args, **kwargs)
+        self.ensure_single_line = ensure_single_line
     
     def format(self, record):
         result = super(MultiprocessRotatingFileHandler, self).format(record)
-        result = result.replace("\r", r"\r").replace("\n", r"\n")
+        if self.ensure_single_line:
+            result = result.replace("\r", r"\r").replace("\n", r"\n")
         return result
     
     @property

@@ -2,6 +2,7 @@
 from __future__ import absolute_import, unicode_literals
 import logging
 import json
+import copy
 import logging.handlers
 
 from . import logger_global_custom_data
@@ -41,6 +42,14 @@ class FormatterWithCustomData(logging.Formatter):
         self._ori_fmt = self._style._fmt
 
     def formatMessage(self, record):
+
+        if logger_global_custom_data:
+            if not getattr(record, 'data', None):
+                record.data = copy.copy(logger_global_custom_data)
+            else:
+                for _k, _v in logger_global_custom_data.items():
+                    record.data.setdefault(_k, _v)
+
         if hasattr(record, 'data'):
             record.data_json = json.dumps(record.data, separators=(',', ':'), ensure_ascii=False)
             self._style._fmt = FILE_LOG_FORMAT_WITH_CUSTOM_DATA
@@ -75,6 +84,7 @@ def _lower_level(*levels):
 def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None,
                 logfile=None, file_level=None, maxBytes=0, backupCount=0,
                 file_format=FILE_LOG_FORMAT, multi_process=False,
+                file_ensure_single_line=True,
                 ):
     _install_custom_levels()
 
@@ -89,10 +99,13 @@ def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None,
 
         if logfile:
             if multi_process:
-                file_handler_class = MultiprocessRotatingFileHandler
+                file_handler = MultiprocessRotatingFileHandler(
+                    logfile, maxBytes=maxBytes, backupCount=backupCount,
+                    ensure_single_line=file_ensure_single_line,
+                )
             else:
-                file_handler_class = logging.handlers.RotatingFileHandler
-            file_handler = file_handler_class(logfile, maxBytes=maxBytes, backupCount=backupCount)
+                file_handler = logging.handlers.RotatingFileHandler(
+                    logfile, maxBytes=maxBytes, backupCount=backupCount)
             file_formatter = FormatterWithCustomData(file_format)
             file_handler.setFormatter(file_formatter)
             logging.root.addHandler(file_handler)
@@ -152,10 +165,6 @@ class EnhancedLogger(logging.Logger):
 
     def _log(self, level, msg, args, exc_info=None,
              extra=None, stack_info=False, **kwargs):
-        if logger_global_custom_data:
-            extra = extra if extra is not None else {}
-            extra.setdefault('data', {})
-            extra['data'].update(logger_global_custom_data)
         if kwargs:
             extra = extra if extra is not None else {}
             extra.setdefault('data', {})

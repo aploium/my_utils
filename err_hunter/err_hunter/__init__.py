@@ -16,8 +16,8 @@ from .mylogging import (
     VERBOSE, TRACE, NOISE, LOWEST,
 )
 
-VERSION = (0, 7, 3, 0)
-VERSION_STR = "{}.{}.{}.{}".format(*VERSION)
+VERSION = (0, 8, 0)
+VERSION_STR = "{}.{}.{}".format(*VERSION)
 
 __version__ = VERSION
 __author__ = "Aploium<i@z.codes>"
