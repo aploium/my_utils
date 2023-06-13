@@ -194,7 +194,7 @@ class LogFormatter(logging.Formatter):
         self._colors = {}
         self._normal = ''
 
-        if color and _stderr_supports_color():
+        if color:  # and _stderr_supports_color():
             self._colors = colors
             self._normal = ForegroundColors.RESET
 
