@@ -8,8 +8,8 @@ import err_hunter
 PACKAGE = "err_hunter"
 NAME = "err-hunter"
 DESCRIPTION = "Enhanced traceback and logging utils"
-AUTHOR = "aploium"
-AUTHOR_EMAIL = "i@z.codes"
+AUTHOR = "ap"
+AUTHOR_EMAIL = "meow@meow.cat"
 URL = "https://github.com/aploium/my_utils/tree/master/err_hunter"
 
 setup(
