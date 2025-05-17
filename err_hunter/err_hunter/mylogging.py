@@ -88,7 +88,8 @@ def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None,
                 ):
     _install_custom_levels()
 
-    logging._acquireLock()
+    if hasattr(logging, '_acquireLock'):
+        logging._acquireLock()
     try:
         if len(logging.root.handlers) != 0:
             return
@@ -120,7 +121,8 @@ def basicConfig(level=logging.INFO, color=False, handler=None, formatter=None,
             logging.root.setLevel(level)
 
     finally:
-        logging._releaseLock()
+        if hasattr(logging, '_releaseLock'):
+            logging._releaseLock()
 
 
 def colorConfig(level=logging.INFO, handler=None, formatter=None, **kwargs):
